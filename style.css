@@ -1,0 +1,127 @@
+:root{
+  --bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;
+  --accent:#2563eb;--accentSoft:#eaf0ff;--danger:#b91c1c;--green:#166534;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang TC","Noto Sans TC",sans-serif;
+  -webkit-font-smoothing:antialiased
+}
+button,input{font:inherit}
+button{touch-action:manipulation}
+.app{
+  width:min(100%,640px);margin:0 auto;
+  padding:calc(14px + env(safe-area-inset-top)) 14px calc(30px + env(safe-area-inset-bottom))
+}
+.top{padding:4px 2px 10px}
+.top h1{margin:0;font-size:27px;letter-spacing:-.4px}
+.top p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.tabs{
+  display:grid;grid-template-columns:1fr 1fr;gap:5px;
+  background:#e9ecf2;border-radius:14px;padding:4px;margin-bottom:12px
+}
+.tab{
+  border:0;background:transparent;min-height:46px;border-radius:11px;
+  font-size:15px;font-weight:750;color:#4b5563
+}
+.tab.active{background:#fff;color:#111827;box-shadow:0 1px 5px rgba(0,0,0,.08)}
+.page{display:none}.page.active{display:block}
+.card{
+  background:var(--card);border-radius:18px;padding:16px;margin:12px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.045)
+}
+h2{font-size:17px;margin:0 0 10px}
+small,.muted{color:var(--muted)}
+.field{
+  display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)
+}
+.field:last-child{border-bottom:0}
+.fieldText{flex:1;min-width:0}
+.field label{font-size:16px;font-weight:550}
+.field small{display:block;font-size:12px;margin-top:3px;line-height:1.4}
+.field input,.addRow input,.rosterName{
+  border:1px solid #d1d5db;border-radius:12px;background:#fff;
+  min-height:44px;font-size:16px;padding:10px 11px;outline:none
+}
+.field input{width:104px;text-align:right}
+.field input:focus,.addRow input:focus,.rosterName:focus{
+  border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)
+}
+.field input[readonly]{background:#f3f4f6;color:#4b5563}
+.toggleRow{display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px}
+.toggleRow input{width:20px;height:20px;margin:0;flex:0 0 auto}
+.resultHero{
+  border-radius:22px;padding:19px;margin:12px 0;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;
+  box-shadow:0 10px 24px rgba(37,99,235,.20)
+}
+.eyebrow{font-size:13px;opacity:.85}
+.bigMoney{font-size:42px;font-weight:850;letter-spacing:-1.5px;margin:5px 0}
+.resultSub{font-size:13px;opacity:.88}
+.resultRows{margin-top:14px}
+.resultRows>div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.18);font-size:14px}
+.resultRows>div:last-child{border-bottom:0}
+.resultRows strong{text-align:right}
+details summary{font-weight:750;cursor:pointer;min-height:44px;display:flex;align-items:center}
+.compact label{flex:1}
+.moneyInput{display:flex;align-items:center;gap:4px;color:var(--muted)}
+.moneyInput input{width:100px}
+.formula{margin-top:12px;background:#f8fafc;border-radius:12px;padding:12px;color:var(--muted);font-size:13px;line-height:1.65}
+button{
+  border:0;border-radius:12px;min-height:44px;padding:10px 13px;font-weight:750
+}
+.primary{background:#111827;color:#fff}
+.secondary{background:#e8eefc;color:#1e3a8a}
+.ghost{background:#eef1f5;color:#374151}
+.full{width:100%;margin-top:10px}
+.bigButton{min-height:54px;font-size:17px;margin:12px 0}
+.sectionHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sectionHeader h2{margin:0}
+.badge{background:#eef1f5;color:#4b5563;border-radius:999px;padding:5px 9px;font-size:12px;white-space:nowrap}
+.badge.accent{background:#e0e7ff;color:#3730a3}
+.addRow{display:flex;gap:8px;margin-top:12px}
+.addRow input{flex:1;min-width:0}
+.buttonRow{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.buttonRow button{font-size:13px;min-height:38px;padding:8px 10px}
+.message{font-size:13px;color:var(--danger);min-height:18px;margin-top:8px}
+.rosterList{margin-top:10px;display:grid;gap:7px}
+.rosterRow{
+  display:grid;grid-template-columns:28px minmax(0,1fr) 42px 42px 42px;
+  align-items:center;gap:6px;background:#f8fafc;border-radius:12px;padding:7px
+}
+.rosterIndex{text-align:center;color:var(--muted);font-size:13px}
+.rosterName{width:100%;min-width:0}
+.iconBtn{padding:0;min-height:40px;width:40px;background:#fff;border:1px solid #e5e7eb}
+.iconBtn:disabled{opacity:.35}
+.court{
+  position:relative;aspect-ratio:1.62/1;background:#dff2df;border:3px solid #517f58;
+  border-radius:14px;overflow:hidden;margin-top:12px
+}
+.courtLine{position:absolute;background:#517f58;opacity:.8}
+.centerV{width:2px;height:100%;left:50%;top:0}
+.centerH{height:2px;width:100%;left:0;top:50%}
+.courtPlayer{
+  position:absolute;width:43%;height:40%;display:flex;align-items:center;justify-content:center;
+  text-align:center;font-weight:800;font-size:16px;padding:5px;z-index:2
+}
+.cp0{left:3%;top:4%}.cp1{right:3%;top:4%}.cp2{left:3%;bottom:4%}.cp3{right:3%;bottom:4%}
+.nextGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.nextPerson{border:1px solid #dbe2ff;background:#f5f7ff;border-radius:12px;padding:11px;text-align:center;font-weight:750;font-size:14px}
+.nextPerson.stay{background:#ecfdf3;border-color:#bbefcc;color:#166534}
+.queueList{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px}
+.queueChip{white-space:nowrap;background:#f3f4f6;border-radius:999px;padding:8px 11px;font-size:13px}
+.statsList{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.statChip{background:#f8fafc;border-radius:11px;padding:9px;font-size:13px}
+.statChip strong{display:block;font-size:16px;margin-top:2px}
+.historyList{display:grid;gap:8px;font-size:13px;line-height:1.5}
+.historyItem{border-left:3px solid #d1d5db;padding-left:9px}
+.dangerSmall{background:#fee2e2;color:#991b1b;min-height:38px;font-size:12px;padding:7px 9px}
+.noteCard{font-size:13px;color:#4b5563;line-height:1.55}
+.noteCard p{margin:6px 0}
+@media(max-width:380px){
+  .rosterRow{grid-template-columns:24px minmax(0,1fr) 38px 38px 38px;gap:4px;padding:6px}
+  .iconBtn{width:36px;min-height:38px}
+  .nextGrid,.statsList{grid-template-columns:1fr}
+  .bigMoney{font-size:37px}
+}
