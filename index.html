@@ -70,7 +70,7 @@
     <div class="row">
       <div class="label">
         臨打幾人
-        <div class="desc">預設每人收 $350</div>
+        <div class="desc">預設每人收 $250</div>
       </div>
       <input id="walkInCount" type="number" inputmode="numeric" min="0" placeholder="0">
     </div>
@@ -131,7 +131,7 @@
 
       <div class="row">
         <div class="label">臨打每人收費</div>
-        <div class="moneyWrap">$ <input id="walkInPrice" type="number" inputmode="decimal" value="350"></div>
+        <div class="moneyWrap">$ <input id="walkInPrice" type="number" inputmode="decimal" value="250"></div>
       </div>
 
       <div class="row">
@@ -151,7 +151,7 @@
         ［2700 −（臨打收入 − 1700）−（親友未滿4小時人數 × 250）−（外部歡樂場人數 × 350）］<br>
         ÷ 打滿4小時親友人數
         <br><br>
-        臨打收入 = 臨打人數 × 350
+        臨打收入 = 臨打人數 × 250
       </div>
     </details>
   </div>
@@ -235,7 +235,7 @@
   $("resetBtn").addEventListener("click", () => {
     $("baseCost").value = 2700;
     $("walkInCourtCost").value = 1700;
-    $("walkInPrice").value = 350;
+    $("walkInPrice").value = 250;
     $("shortPrice").value = 250;
     $("funPrice").value = 350;
     calc();
