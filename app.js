@@ -768,6 +768,111 @@
     saveAll();
   }
 
+
+  // ---------- Pull to refresh ----------
+  (() => {
+    const indicator = $("pullRefresh");
+    const icon = $("pullRefreshIcon");
+    const text = $("pullRefreshText");
+    if (!indicator || !icon || !text) return;
+
+    const threshold = 78;
+    const maxPull = 120;
+    let startY = 0;
+    let distance = 0;
+    let tracking = false;
+    let refreshing = false;
+
+    function atPageTop() {
+      return window.scrollY <= 0 &&
+        document.documentElement.scrollTop <= 0 &&
+        document.body.scrollTop <= 0;
+    }
+
+    function resetIndicator() {
+      distance = 0;
+      tracking = false;
+      indicator.classList.remove("ready");
+      indicator.style.height = "0px";
+      icon.textContent = "↓";
+      text.textContent = "下拉重新整理";
+    }
+
+    async function doRefresh() {
+      if (refreshing) return;
+      refreshing = true;
+      indicator.classList.remove("ready");
+      indicator.classList.add("refreshing");
+      indicator.style.height = "58px";
+      icon.textContent = "↻";
+      text.textContent = "正在更新…";
+
+      try {
+        if ("serviceWorker" in navigator) {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (registration) {
+            await registration.update();
+          }
+        }
+      } catch (_) {
+        // Even if SW update fails, page reload still works.
+      }
+
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 180);
+    }
+
+    window.addEventListener("touchstart", (event) => {
+      if (refreshing || !atPageTop() || event.touches.length !== 1) return;
+      startY = event.touches[0].clientY;
+      distance = 0;
+      tracking = true;
+    }, {passive:true});
+
+    window.addEventListener("touchmove", (event) => {
+      if (!tracking || refreshing || event.touches.length !== 1) return;
+
+      const currentY = event.touches[0].clientY;
+      const raw = currentY - startY;
+
+      if (raw <= 0) {
+        resetIndicator();
+        return;
+      }
+
+      // Add resistance so the pull feels natural.
+      distance = Math.min(maxPull, raw * 0.58);
+      indicator.style.height = `${Math.max(0, distance)}px`;
+
+      if (distance >= threshold) {
+        indicator.classList.add("ready");
+        icon.textContent = "↻";
+        text.textContent = "放開更新";
+      } else {
+        indicator.classList.remove("ready");
+        icon.textContent = "↓";
+        text.textContent = "下拉重新整理";
+      }
+    }, {passive:true});
+
+    window.addEventListener("touchend", () => {
+      if (!tracking || refreshing) return;
+      const shouldRefresh = distance >= threshold;
+      tracking = false;
+
+      if (shouldRefresh) {
+        doRefresh();
+      } else {
+        resetIndicator();
+      }
+    }, {passive:true});
+
+    window.addEventListener("touchcancel", () => {
+      if (!refreshing) resetIndicator();
+    }, {passive:true});
+  })();
+
   // ---------- Init ----------
   calc();
   renderPeopleMemory();

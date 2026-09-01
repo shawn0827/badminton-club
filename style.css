@@ -182,3 +182,66 @@ button{
 #funOutsideCount:focus::placeholder {
   color: #d8dce3;
 }
+
+
+/* v5：iPhone 下拉重新整理 */
+.pullRefresh{
+  position:fixed;
+  z-index:9999;
+  top:0;
+  left:0;
+  right:0;
+  height:0;
+  overflow:hidden;
+  display:flex;
+  justify-content:center;
+  align-items:flex-end;
+  pointer-events:none;
+  transition:height .16s ease;
+}
+
+.pullRefreshInner{
+  margin-bottom:8px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 12px;
+  border-radius:999px;
+  background:rgba(255,255,255,.96);
+  border:1px solid rgba(209,213,219,.9);
+  box-shadow:0 4px 14px rgba(0,0,0,.08);
+  color:#4b5563;
+  font-size:13px;
+  font-weight:650;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+.pullRefreshIcon{
+  display:inline-block;
+  font-size:16px;
+  transform:rotate(0deg);
+  transition:transform .16s ease;
+}
+
+.pullRefresh.ready .pullRefreshIcon{
+  transform:rotate(180deg);
+}
+
+.pullRefresh.refreshing .pullRefreshIcon{
+  animation:pullRefreshSpin .7s linear infinite;
+}
+
+@keyframes pullRefreshSpin{
+  to{transform:rotate(360deg)}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .pullRefresh,
+  .pullRefreshIcon{
+    transition:none;
+  }
+  .pullRefresh.refreshing .pullRefreshIcon{
+    animation:none;
+  }
+}
