@@ -57,6 +57,7 @@
     }
     .hint{font-size:12px;color:var(--muted);line-height:1.55;margin-top:10px}
     .tag{display:inline-block;font-size:12px;padding:3px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;margin-left:6px}
+    .auto{display:inline-block;font-size:12px;padding:3px 8px;border-radius:999px;background:#dcfce7;color:#166534;margin-left:6px}
   </style>
 </head>
 <body>
@@ -70,7 +71,7 @@
     <div class="row">
       <div class="label">
         臨打幾人
-        <div class="desc">預設每人收 $250</div>
+        <div class="desc">每人預設收 $350；0 人時臨打場成本自動改 $1,000</div>
       </div>
       <input id="walkInCount" type="number" inputmode="numeric" min="0" placeholder="0">
     </div>
@@ -107,12 +108,12 @@
     <div id="familyInfo" class="small">請先輸入打滿 4 小時的親友人數</div>
 
     <div style="height:10px"></div>
+    <div class="metric"><span>目前臨打場成本 <span class="auto">自動</span></span><strong id="activeWalkInCourtCost">$1,000</strong></div>
     <div class="metric"><span>臨打場收入</span><strong id="walkInIncome">$0</strong></div>
     <div class="metric"><span>臨打場盈虧</span><strong id="walkInProfit">$0</strong></div>
     <div class="metric"><span>親友未滿 4 小時收入</span><strong id="shortIncome">$0</strong></div>
     <div class="metric"><span>外部歡樂場收入</span><strong id="funIncome">$0</strong></div>
     <div class="metric"><span>打滿 4 小時親友需分攤總額</span><strong id="familyTotal">$0</strong></div>
-    <div class="metric"><span>今日總收入（依目前計算）</span><strong id="totalIncome">$0</strong></div>
   </div>
 
   <div class="card">
@@ -125,13 +126,18 @@
       </div>
 
       <div class="row">
-        <div class="label">臨打場成本</div>
-        <div class="moneyWrap">$ <input id="walkInCourtCost" type="number" inputmode="decimal" value="1700"></div>
+        <div class="label">有臨打時場成本</div>
+        <div class="moneyWrap">$ <input id="walkInCourtCostActive" type="number" inputmode="decimal" value="1700"></div>
+      </div>
+
+      <div class="row">
+        <div class="label">無臨打時場成本</div>
+        <div class="moneyWrap">$ <input id="walkInCourtCostEmpty" type="number" inputmode="decimal" value="1000"></div>
       </div>
 
       <div class="row">
         <div class="label">臨打每人收費</div>
-        <div class="moneyWrap">$ <input id="walkInPrice" type="number" inputmode="decimal" value="250"></div>
+        <div class="moneyWrap">$ <input id="walkInPrice" type="number" inputmode="decimal" value="350"></div>
       </div>
 
       <div class="row">
@@ -147,23 +153,26 @@
       <button class="btn" id="resetBtn">恢復預設價格</button>
 
       <div class="formula">
-        計算公式：<br><br>
-        ［2700 −（臨打收入 − 1700）−（親友未滿4小時人數 × 250）−（外部歡樂場人數 × 350）］<br>
-        ÷ 打滿4小時親友人數
+        自動規則：<br>
+        臨打人數 = 0 → 臨打場成本 $1,000<br>
+        臨打人數 &gt; 0 → 臨打場成本 $1,700
         <br><br>
-        臨打收入 = 臨打人數 × 250
+        公式：<br>
+        ［2700 −（臨打收入 − 自動臨打場成本）−（親友未滿4小時人數 × 250）−（外部歡樂場人數 × 350）］
+        ÷ 打滿4小時親友人數
       </div>
     </details>
   </div>
 
-  <div class="hint">
-    價格設定會自動記在這支 iPhone。人數不會保存，下一場可以直接重新輸入。
-  </div>
+  <div class="hint">價格設定會自動記在這支 iPhone 上。</div>
 </div>
 
 <script>
   const countIds = ["walkInCount","familyFullCount","familyShortCount","funOutsideCount"];
-  const settingIds = ["baseCost","walkInCourtCost","walkInPrice","shortPrice","funPrice"];
+  const settingIds = [
+    "baseCost","walkInCourtCostActive","walkInCourtCostEmpty",
+    "walkInPrice","shortPrice","funPrice"
+  ];
   const allIds = [...countIds, ...settingIds];
 
   const $ = id => document.getElementById(id);
@@ -173,12 +182,12 @@
   }).format(Math.round(v));
 
   function saveSettings(){
-    settingIds.forEach(id => localStorage.setItem("badminton_v2_"+id, $(id).value));
+    settingIds.forEach(id => localStorage.setItem("badminton_v3_"+id, $(id).value));
   }
 
   function loadSettings(){
     settingIds.forEach(id => {
-      const value = localStorage.getItem("badminton_v2_"+id);
+      const value = localStorage.getItem("badminton_v3_"+id);
       if(value !== null) $(id).value = value;
     });
   }
@@ -190,19 +199,22 @@
     const funOutsideCount = n("funOutsideCount");
 
     const baseCost = n("baseCost");
-    const walkInCourtCost = n("walkInCourtCost");
+    const activeCost = n("walkInCourtCostActive");
+    const emptyCost = n("walkInCourtCostEmpty");
     const walkInPrice = n("walkInPrice");
     const shortPrice = n("shortPrice");
     const funPrice = n("funPrice");
 
-    const walkInIncome = walkInCount * walkInPrice;
-    const walkInProfit = walkInIncome - walkInCourtCost;
+    const currentWalkInCourtCost = walkInCount > 0 ? activeCost : emptyCost;
 
+    const walkInIncome = walkInCount * walkInPrice;
+    const walkInProfit = walkInIncome - currentWalkInCourtCost;
     const shortIncome = familyShortCount * shortPrice;
     const funIncome = funOutsideCount * funPrice;
 
     const familyTotal = baseCost - walkInProfit - shortIncome - funIncome;
 
+    $("activeWalkInCourtCost").textContent = money(currentWalkInCourtCost);
     $("walkInIncome").textContent = money(walkInIncome);
     $("walkInProfit").textContent = (walkInProfit > 0 ? "+" : "") + money(walkInProfit);
     $("shortIncome").textContent = money(shortIncome);
@@ -213,18 +225,9 @@
       const perPerson = familyTotal / familyFullCount;
       $("perPerson").textContent = money(perPerson);
       $("familyInfo").textContent = `打滿 4 小時親友 ${familyFullCount} 人平均分攤`;
-
-      const totalIncome =
-        walkInIncome +
-        shortIncome +
-        funIncome +
-        perPerson * familyFullCount;
-
-      $("totalIncome").textContent = money(totalIncome);
     } else {
       $("perPerson").textContent = "—";
       $("familyInfo").textContent = "請先輸入打滿 4 小時的親友人數";
-      $("totalIncome").textContent = money(walkInIncome + shortIncome + funIncome);
     }
 
     saveSettings();
@@ -234,8 +237,9 @@
 
   $("resetBtn").addEventListener("click", () => {
     $("baseCost").value = 2700;
-    $("walkInCourtCost").value = 1700;
-    $("walkInPrice").value = 250;
+    $("walkInCourtCostActive").value = 1700;
+    $("walkInCourtCostEmpty").value = 1000;
+    $("walkInPrice").value = 350;
     $("shortPrice").value = 250;
     $("funPrice").value = 350;
     calc();
