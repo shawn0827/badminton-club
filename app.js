@@ -10,9 +10,9 @@
   }).format(Math.round(Number(value) || 0));
 
   const KEYS = {
-    settings: "badminton_tools_settings_v1",
+    settings: "badminton_tools_settings_v2",
     roster: "badminton_tools_roster_v1",
-    rotation: "badminton_tools_rotation_v1",
+    rotation: "badminton_tools_rotation_v2",
     calc: "badminton_tools_calc_v1",
     tab: "badminton_tools_tab_v1"
   };
@@ -21,7 +21,7 @@
     baseCost: 2700,
     activeCost: 1700,
     emptyCost: 1000,
-    walkInPrice: 350,
+    walkInPrice: 250,
     shortPrice: 250,
     funPrice: 350
   };
@@ -41,9 +41,9 @@
     court: [],
     queue: [],
     games: {},
-    streak: {},
     round: 1,
-    history: []
+    history: [],
+    nextPlan: null
   });
 
   function loadJSON(key, fallback) {
@@ -71,7 +71,7 @@
     const rosterSet = new Set(roster);
 
     if (!rotation || typeof rotation !== "object") {
-      rotation = { active:false, court:[], queue:[], games:{}, streak:{}, round:1, history:[] };
+      rotation = { active:false, court:[], queue:[], games:{}, round:1, history:[], nextPlan:null };
     }
 
     rotation.court = Array.isArray(rotation.court) ? rotation.court.filter(x => rosterSet.has(x)) : [];
@@ -86,9 +86,9 @@
       rotation.court = [];
       rotation.queue = [];
       rotation.games = {};
-      rotation.streak = {};
       rotation.round = 1;
       rotation.history = [];
+      rotation.nextPlan = null;
     }
   }
 
@@ -268,9 +268,14 @@
         rotation.games[newName] = rotation.games[oldName];
         delete rotation.games[oldName];
       }
-      if (Object.prototype.hasOwnProperty.call(rotation.streak, oldName)) {
-        rotation.streak[newName] = rotation.streak[oldName];
-        delete rotation.streak[oldName];
+      if (rotation.nextPlan) {
+        rotation.nextPlan = {
+          ...rotation.nextPlan,
+          next: rotation.nextPlan.next.map(x => x === oldName ? newName : x),
+          stayers: rotation.nextPlan.stayers.map(x => x === oldName ? newName : x),
+          incoming: rotation.nextPlan.incoming.map(x => x === oldName ? newName : x),
+          outgoing: rotation.nextPlan.outgoing.map(x => x === oldName ? newName : x)
+        };
       }
 
       rotation.history = rotation.history.map(entry => ({
@@ -414,10 +419,11 @@
   $("demo10Btn").addEventListener("click", () => makeDemo(10));
 
   // ---------- Rotation ----------
+  // ---------- Rotation ----------
   function requestedOffCount(total) {
     if (total >= 9) return 4;
     if (total >= 7) return 3;
-    return 2; // 6 人以下的目標規則；候補不足時會自動降低
+    return 2; // 6 人以下目標下 2；候補不足時自動降低
   }
 
   function actualOffCount() {
@@ -426,40 +432,67 @@
   }
 
   function ruleText(total) {
-    if (total >= 9) return "9 人以上：上 4 下 4";
-    if (total >= 7) return "7–8 人：上 4 下 3";
-    return "6 人以下：上 4 下 2";
+    if (total >= 9) return "9 人以上：隨機上 4 下 4";
+    if (total >= 7) return "7–8 人：隨機上 4 下 3";
+    return "6 人以下：隨機上 4 下 2";
   }
 
   function updateRuleBadge() {
     $("ruleBadge").textContent = roster.length >= 4 ? ruleText(roster.length) : "至少需要 4 人";
   }
 
-  function chooseStayers(stayCount) {
-    if (stayCount <= 0) return [];
-    return [...rotation.court]
-      .sort((a,b) =>
-        (rotation.streak[a] || 0) - (rotation.streak[b] || 0) ||
-        (rotation.games[a] || 0) - (rotation.games[b] || 0) ||
-        roster.indexOf(a) - roster.indexOf(b)
-      )
-      .slice(0, stayCount);
+  function shuffle(array) {
+    const result = [...array];
+    for (let i = result.length - 1; i > 0; i--) {
+      let j;
+      if (window.crypto && window.crypto.getRandomValues) {
+        const random = new Uint32Array(1);
+        window.crypto.getRandomValues(random);
+        j = random[0] % (i + 1);
+      } else {
+        j = Math.floor(Math.random() * (i + 1));
+      }
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
   }
 
-  function predictNext() {
+  function randomPick(array, count) {
+    return shuffle(array).slice(0, Math.max(0, Math.min(count, array.length)));
+  }
+
+  function createRandomPlan() {
     if (!rotation.active || rotation.court.length !== 4) {
       return { next:[], stayers:[], incoming:[], outgoing:[], requested:0, actual:0 };
     }
 
     const requested = requestedOffCount(roster.length);
     const actual = actualOffCount();
-    const stayCount = 4 - actual;
-    const stayers = chooseStayers(stayCount);
-    const incoming = rotation.queue.slice(0, actual);
-    const outgoing = rotation.court.filter(name => !stayers.includes(name));
-    const next = [...stayers, ...incoming];
+
+    // 每局重新隨機決定誰下場、誰從候補上場。
+    const outgoing = randomPick(rotation.court, actual);
+    const stayers = rotation.court.filter(name => !outgoing.includes(name));
+    const incoming = randomPick(rotation.queue, actual);
+
+    // 四位下一場球員再洗牌一次，連場上位置／搭檔也隨機。
+    const next = shuffle([...stayers, ...incoming]);
 
     return { next, stayers, incoming, outgoing, requested, actual };
+  }
+
+  function ensureNextPlan() {
+    if (!rotation.active) return;
+    const plan = rotation.nextPlan;
+    const allNames = new Set(roster);
+    const valid = plan &&
+      Array.isArray(plan.next) &&
+      plan.next.length === 4 &&
+      plan.next.every(name => allNames.has(name));
+
+    if (!valid) {
+      rotation.nextPlan = createRandomPlan();
+      saveAll();
+    }
   }
 
   function startRotation() {
@@ -468,18 +501,23 @@
       return;
     }
 
+    // 第一場也隨機，不再固定使用名單前四位。
+    const shuffledRoster = shuffle(roster);
+
     rotation = {
       active: true,
-      court: roster.slice(0,4),
-      queue: roster.slice(4),
+      court: shuffledRoster.slice(0,4),
+      queue: shuffledRoster.slice(4),
       games: Object.fromEntries(roster.map(name => [name,0])),
-      streak: Object.fromEntries(roster.map(name => [name,0])),
       round: 1,
-      history: []
+      history: [],
+      nextPlan: null
     };
 
+    rotation.nextPlan = createRandomPlan();
+
     saveAll();
-    setRosterMessage("排場已開始。若名字打錯，可直接修改姓名。", false);
+    setRosterMessage("已隨機安排第一場；每局結束後都會重新隨機抽下一場。", false);
     renderRoster();
     renderRotation();
   }
@@ -489,38 +527,40 @@
   function finishRound() {
     if (!rotation.active || rotation.court.length !== 4) return;
 
+    ensureNextPlan();
+    const plan = rotation.nextPlan;
     const oldCourt = [...rotation.court];
+
     oldCourt.forEach(name => {
       rotation.games[name] = (rotation.games[name] || 0) + 1;
     });
 
-    const prediction = predictNext();
-    const usedIncoming = rotation.queue.splice(0, prediction.actual);
-    const stayers = prediction.stayers;
-    const outgoing = oldCourt.filter(name => !stayers.includes(name));
+    // 把本輪被抽中的候補移出候補區。
+    const incomingSet = new Set(plan.incoming);
+    rotation.queue = rotation.queue.filter(name => !incomingSet.has(name));
 
-    rotation.queue.push(...outgoing);
-    rotation.court = [...stayers, ...usedIncoming];
+    // 本輪下場的人回到候補池，候補池順序也隨機。
+    rotation.queue.push(...plan.outgoing);
+    rotation.queue = shuffle(rotation.queue);
 
-    roster.forEach(name => {
-      if (stayers.includes(name)) {
-        rotation.streak[name] = (rotation.streak[name] || 0) + 1;
-      } else {
-        rotation.streak[name] = 0;
-      }
-    });
+    rotation.court = [...plan.next];
 
     rotation.history.unshift({
       round: rotation.round,
       court: oldCourt,
-      stayers: [...stayers],
-      incoming: [...usedIncoming],
-      outgoing: [...outgoing],
-      requested: prediction.requested,
-      actual: prediction.actual
+      stayers: [...plan.stayers],
+      incoming: [...plan.incoming],
+      outgoing: [...plan.outgoing],
+      requested: plan.requested,
+      actual: plan.actual
     });
 
     rotation.round += 1;
+
+    // 先更新狀態，再隨機產生下一輪，讓畫面上的「下一場」不會跳來跳去。
+    rotation.nextPlan = null;
+    rotation.nextPlan = createRandomPlan();
+
     saveAll();
     renderRotation();
   }
@@ -532,9 +572,9 @@
     rotation.court = [];
     rotation.queue = [];
     rotation.games = {};
-    rotation.streak = {};
     rotation.round = 1;
     rotation.history = [];
+    rotation.nextPlan = null;
     saveAll();
     setRosterMessage("已結束排場，現在可以新增、刪除或調整名單順序。", false);
     renderRoster();
@@ -548,6 +588,8 @@
       return;
     }
 
+    ensureNextPlan();
+
     $("roundBadge").textContent = `第 ${rotation.round} 場`;
     $("ruleBadge").textContent = ruleText(roster.length);
 
@@ -555,21 +597,23 @@
       $(`court${i}`).textContent = rotation.court[i] || "—";
     }
 
-    const prediction = predictNext();
+    const prediction = rotation.nextPlan;
     const nextGrid = $("nextGrid");
     nextGrid.innerHTML = "";
+
     prediction.next.forEach(name => {
       const box = document.createElement("div");
-      box.className = "nextPerson" + (prediction.stayers.includes(name) ? " stay" : "");
-      box.textContent = prediction.stayers.includes(name) ? `⭐ ${name}｜留場` : `⬆️ ${name}｜上場`;
+      const isStay = prediction.stayers.includes(name);
+      box.className = "nextPerson" + (isStay ? " stay" : "");
+      box.textContent = isStay ? `⭐ ${name}｜隨機留場` : `🎲 ${name}｜隨機上場`;
       nextGrid.appendChild(box);
     });
 
     let nextRule = ruleText(roster.length);
     if (prediction.actual < prediction.requested) {
-      nextRule += `；候補只有 ${rotation.queue.length} 人，所以本輪實際下 ${prediction.actual} 人`;
+      nextRule += `；候補只有 ${rotation.queue.length} 人，因此本輪實際隨機下 ${prediction.actual} 人`;
     } else {
-      nextRule += `；本輪下 ${prediction.actual} 人`;
+      nextRule += `；本輪隨機下 ${prediction.actual} 人`;
     }
     $("nextRuleText").textContent = nextRule;
 
@@ -581,10 +625,10 @@
       empty.textContent = "目前沒有候補";
       queue.appendChild(empty);
     } else {
-      rotation.queue.forEach((name,index) => {
+      rotation.queue.forEach(name => {
         const chip = document.createElement("span");
         chip.className = "queueChip";
-        chip.textContent = `${index+1}. ${name}`;
+        chip.textContent = name;
         queue.appendChild(chip);
       });
     }
@@ -620,8 +664,8 @@
         title.textContent = `第 ${entry.round} 場｜${entry.court.join("、")}`;
 
         const detail = document.createElement("div");
-        const stayText = entry.stayers.length ? `留：${entry.stayers.join("、")}` : "無留場";
-        const offText = entry.outgoing.length ? `下：${entry.outgoing.join("、")}` : "無下場";
+        const stayText = entry.stayers.length ? `隨機留：${entry.stayers.join("、")}` : "無留場";
+        const offText = entry.outgoing.length ? `隨機下：${entry.outgoing.join("、")}` : "無下場";
         detail.textContent = `${stayText}｜${offText}`;
 
         item.append(title,detail);
