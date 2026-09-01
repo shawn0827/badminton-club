@@ -1,4 +1,4 @@
-const CACHE = "badminton-tools-v2-random";
+const CACHE = "badminton-tools-v4-input-ux";
 const ASSETS = ["./","./index.html","./style.css","./app.js","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 
 self.addEventListener("install", event => {

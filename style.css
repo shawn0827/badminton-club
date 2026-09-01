@@ -125,3 +125,60 @@ button{
   .nextGrid,.statsList{grid-template-columns:1fr}
   .bigMoney{font-size:37px}
 }
+
+
+.syncRosterBox{
+  padding:10px 0 13px;border-bottom:1px solid var(--line)
+}
+.syncRosterBox .full{margin-top:0}
+.syncRosterBox small{display:block;margin-top:7px;line-height:1.45}
+.memoryBlock{
+  margin-top:12px;padding:12px;background:#f8fafc;border-radius:14px
+}
+.memoryHeader{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:10px
+}
+.memoryHeader>div{min-width:0}
+.memoryHeader strong{display:block;font-size:14px}
+.memoryHeader small{display:block;font-size:12px;line-height:1.4;margin-top:2px}
+.memoryAction{min-height:38px;font-size:12px;padding:7px 9px;white-space:nowrap}
+.memoryPeopleList{
+  display:flex;gap:7px;flex-wrap:wrap;margin-top:10px
+}
+.memoryPerson{
+  border:1px solid #dbe2ea;background:#fff;border-radius:999px;
+  min-height:38px;padding:8px 11px;font-size:13px;color:#374151
+}
+.memoryPerson.inRoster{
+  background:#ecfdf3;border-color:#bbefcc;color:#166534
+}
+.memoryEmpty{font-size:13px;color:var(--muted);padding:4px 0}
+
+
+/* v4：人數欄位輸入體驗
+   - 空白時顯示淡灰色 0（placeholder）
+   - 真正輸入後自動變成深色文字
+*/
+#walkInCount,
+#familyFullCount,
+#familyShortCount,
+#funOutsideCount {
+  color: var(--text);
+  font-weight: 650;
+}
+
+#walkInCount::placeholder,
+#familyFullCount::placeholder,
+#familyShortCount::placeholder,
+#funOutsideCount::placeholder {
+  color: #c5cad3;
+  opacity: 1;
+  font-weight: 500;
+}
+
+#walkInCount:focus::placeholder,
+#familyFullCount:focus::placeholder,
+#familyShortCount:focus::placeholder,
+#funOutsideCount:focus::placeholder {
+  color: #d8dce3;
+}

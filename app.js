@@ -10,11 +10,12 @@
   }).format(Math.round(Number(value) || 0));
 
   const KEYS = {
-    settings: "badminton_tools_settings_v2",
-    roster: "badminton_tools_roster_v1",
-    rotation: "badminton_tools_rotation_v2",
-    calc: "badminton_tools_calc_v1",
-    tab: "badminton_tools_tab_v1"
+    settings: "badminton_tools_settings_v3",
+    roster: "badminton_tools_roster_v3",
+    rotation: "badminton_tools_rotation_v3",
+    calc: "badminton_tools_calc_v3",
+    memory: "badminton_tools_people_memory_v1",
+    tab: "badminton_tools_tab_v3"
   };
 
   const defaultSettings = {
@@ -29,12 +30,13 @@
   let settings = loadJSON(KEYS.settings, defaultSettings);
   let roster = loadJSON(KEYS.roster, []);
   let calcState = loadJSON(KEYS.calc, {
-    walkInCount: 0,
-    familyFullCount: 0,
-    familyShortCount: 0,
-    funOutsideCount: 0,
-    useRosterCount: true
+    walkInCount: "",
+    familyFullCount: "",
+    familyShortCount: "",
+    funOutsideCount: ""
   });
+
+  let peopleMemory = loadJSON(KEYS.memory, []);
 
   let rotation = loadJSON(KEYS.rotation, {
     active: false,
@@ -64,10 +66,14 @@
     localStorage.setItem(KEYS.roster, JSON.stringify(roster));
     localStorage.setItem(KEYS.calc, JSON.stringify(calcState));
     localStorage.setItem(KEYS.rotation, JSON.stringify(rotation));
+    localStorage.setItem(KEYS.memory, JSON.stringify(peopleMemory));
   }
 
   function normalizeLoadedState() {
     roster = Array.isArray(roster) ? roster.filter(x => typeof x === "string" && x.trim()).slice(0, 24) : [];
+    peopleMemory = Array.isArray(peopleMemory)
+      ? [...new Set(peopleMemory.filter(x => typeof x === "string" && x.trim()))].slice(0, 60)
+      : [];
     const rosterSet = new Set(roster);
 
     if (!rotation || typeof rotation !== "object") {
@@ -129,22 +135,19 @@
   $("shortPrice").value = settings.shortPrice;
   $("funPrice").value = settings.funPrice;
 
-  $("familyFullCount").value = calcState.familyFullCount || 0;
-  $("familyShortCount").value = calcState.familyShortCount || 0;
-  $("funOutsideCount").value = calcState.funOutsideCount || 0;
-  $("useRosterCount").checked = calcState.useRosterCount !== false;
+  $("walkInCount").value = calcState.walkInCount ?? "";
+  $("familyFullCount").value = calcState.familyFullCount ?? "";
+  $("familyShortCount").value = calcState.familyShortCount ?? "";
+  $("funOutsideCount").value = calcState.funOutsideCount ?? "";
+  $("rosterCountHint").textContent = "臨打每人 $250；目前採手動輸入";
 
-  function syncWalkInField() {
-    const useRoster = $("useRosterCount").checked;
-    $("walkInCount").readOnly = useRoster;
-    if (useRoster) {
-      $("walkInCount").value = roster.length;
-      calcState.walkInCount = roster.length;
-      $("rosterCountHint").textContent = `目前輪轉名單 ${roster.length} 人，已自動同步`;
-    } else {
-      $("walkInCount").value = calcState.walkInCount || 0;
-      $("rosterCountHint").textContent = "目前使用手動輸入";
-    }
+  function useRosterCountOnce() {
+    $("walkInCount").value = roster.length ? String(roster.length) : "";
+    calcState.walkInCount = $("walkInCount").value;
+    $("syncRosterCountStatus").textContent = roster.length
+      ? `已帶入輪轉名單 ${roster.length} 人`
+      : "輪轉名單目前沒有人";
+    calc();
   }
 
   function calc() {
@@ -176,26 +179,18 @@
       $("familyInfo").textContent = "請輸入打滿 4 小時親友人數";
     }
 
-    calcState.walkInCount = walkInCount;
-    calcState.familyFullCount = familyFullCount;
-    calcState.familyShortCount = familyShortCount;
-    calcState.funOutsideCount = funOutsideCount;
-    calcState.useRosterCount = $("useRosterCount").checked;
+    calcState.walkInCount = $("walkInCount").value;
+    calcState.familyFullCount = $("familyFullCount").value;
+    calcState.familyShortCount = $("familyShortCount").value;
+    calcState.funOutsideCount = $("funOutsideCount").value;
     saveAll();
   }
 
   calcIds.forEach(id => {
-    $(id).addEventListener("input", () => {
-      if (id === "walkInCount" && $("useRosterCount").checked) return;
-      calc();
-    });
+    $(id).addEventListener("input", calc);
   });
 
-  $("useRosterCount").addEventListener("change", () => {
-    calcState.useRosterCount = $("useRosterCount").checked;
-    syncWalkInField();
-    calc();
-  });
+  $("syncRosterCountBtn").addEventListener("click", useRosterCountOnce);
 
   Object.entries(settingMap).forEach(([elementId, key]) => {
     $(elementId).addEventListener("input", () => {
@@ -218,14 +213,15 @@
   });
 
   $("clearTodayBtn").addEventListener("click", () => {
-    calcState.familyFullCount = 0;
-    calcState.familyShortCount = 0;
-    calcState.funOutsideCount = 0;
-    if (!$("useRosterCount").checked) calcState.walkInCount = 0;
-    $("familyFullCount").value = 0;
-    $("familyShortCount").value = 0;
-    $("funOutsideCount").value = 0;
-    syncWalkInField();
+    calcState.walkInCount = "";
+    calcState.familyFullCount = "";
+    calcState.familyShortCount = "";
+    calcState.funOutsideCount = "";
+    $("walkInCount").value = "";
+    $("familyFullCount").value = "";
+    $("familyShortCount").value = "";
+    $("funOutsideCount").value = "";
+    $("syncRosterCountStatus").textContent = "目前採手動輸入；需要時再按上方按鈕";
     calc();
   });
 
@@ -242,12 +238,11 @@
 
   function updateRosterDerivedState() {
     $("rosterSummary").textContent = `目前 ${roster.length} 人`;
-    if ($("useRosterCount").checked) {
-      calcState.walkInCount = roster.length;
-      syncWalkInField();
-      calc();
-    }
+    $("syncRosterCountStatus").textContent = roster.length
+      ? `輪轉名單目前 ${roster.length} 人；需要時按「使用輪轉名單人數」`
+      : "輪轉名單目前沒有人";
     saveAll();
+    renderPeopleMemory();
   }
 
   function renamePlayer(oldName, newName) {
@@ -287,10 +282,102 @@
       }));
     }
 
+    if (peopleMemory.includes(oldName)) {
+      peopleMemory = peopleMemory.map(name => name === oldName ? newName : name);
+      peopleMemory = [...new Set(peopleMemory)];
+    }
+
     updateRosterDerivedState();
     renderRoster();
     renderRotation();
+    renderPeopleMemory();
     return { ok:true };
+  }
+
+
+  function renderPeopleMemory() {
+    const list = $("memoryPeopleList");
+    if (!list) return;
+    list.innerHTML = "";
+
+    if (!peopleMemory.length) {
+      const empty = document.createElement("div");
+      empty.className = "memoryEmpty";
+      empty.textContent = "尚未記住常用球友";
+      list.appendChild(empty);
+      return;
+    }
+
+    peopleMemory.forEach(name => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "memoryPerson" + (roster.includes(name) ? " inRoster" : "");
+      btn.textContent = roster.includes(name) ? `✓ ${name}` : `＋ ${name}`;
+      btn.disabled = rotation.active && !roster.includes(name);
+      btn.addEventListener("click", () => {
+        if (roster.includes(name)) return;
+        if (rotation.active) {
+          setRosterMessage("排場中不能新增人員，請先結束排場");
+          return;
+        }
+        if (roster.length >= 24) {
+          setRosterMessage("本場名單最多 24 人");
+          return;
+        }
+        roster.push(name);
+        updateRosterDerivedState();
+        renderRoster();
+        setRosterMessage(`${name} 已加入本場`, false);
+      });
+      list.appendChild(btn);
+    });
+  }
+
+  function rememberCurrentRoster() {
+    if (!roster.length) {
+      setRosterMessage("目前本場名單沒有人可以記住");
+      return;
+    }
+    peopleMemory = [...new Set([...peopleMemory, ...roster])].slice(0, 60);
+    saveAll();
+    renderPeopleMemory();
+    setRosterMessage(`已記住 ${roster.length} 位本場球友`, false);
+  }
+
+  function addAllMemoryToRoster() {
+    if (rotation.active) {
+      setRosterMessage("排場中不能新增人員，請先結束排場");
+      return;
+    }
+    const available = peopleMemory.filter(name => !roster.includes(name));
+    const slots = Math.max(0, 24 - roster.length);
+    const toAdd = available.slice(0, slots);
+    roster.push(...toAdd);
+    updateRosterDerivedState();
+    renderRoster();
+    setRosterMessage(
+      toAdd.length ? `已加入 ${toAdd.length} 位常用球友` : "常用球友都已在本場名單",
+      false
+    );
+  }
+
+  function clearCurrentRoster() {
+    if (rotation.active) {
+      setRosterMessage("請先結束排場再清空本場名單");
+      return;
+    }
+    roster = [];
+    updateRosterDerivedState();
+    renderRoster();
+    setRosterMessage("本場名單已清空；常用球友仍保留", false);
+  }
+
+  function clearPeopleMemory() {
+    if (!peopleMemory.length) return;
+    peopleMemory = [];
+    saveAll();
+    renderPeopleMemory();
+    setRosterMessage("常用球友已清除", false);
   }
 
   function renderRoster() {
@@ -413,6 +500,11 @@
     renderRoster();
     setRosterMessage(`已建立 ${count} 人測試名單`, false);
   }
+
+  $("rememberRosterBtn").addEventListener("click", rememberCurrentRoster);
+  $("addAllMemoryBtn").addEventListener("click", addAllMemoryToRoster);
+  $("clearRosterBtn").addEventListener("click", clearCurrentRoster);
+  $("clearMemoryBtn").addEventListener("click", clearPeopleMemory);
 
   $("demo6Btn").addEventListener("click", () => makeDemo(6));
   $("demo8Btn").addEventListener("click", () => makeDemo(8));
@@ -677,8 +769,8 @@
   }
 
   // ---------- Init ----------
-  syncWalkInField();
   calc();
+  renderPeopleMemory();
   renderRoster();
   renderRotation();
   updateRosterDerivedState();

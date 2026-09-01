@@ -35,20 +35,20 @@
             <label for="walkInCount">臨打幾人</label>
             <small id="rosterCountHint">臨打每人 $250；可直接輸入，或使用輪轉名單人數</small>
           </div>
-          <input id="walkInCount" type="number" inputmode="numeric" min="0" value="0">
+          <input id="walkInCount" type="number" inputmode="numeric" min="0" placeholder="0">
         </div>
 
-        <label class="toggleRow">
-          <input id="useRosterCount" type="checkbox" checked>
-          <span>臨打人數自動使用「上場輪轉」名單</span>
-        </label>
+        <div class="syncRosterBox">
+          <button id="syncRosterCountBtn" class="secondary full" type="button">使用輪轉名單人數</button>
+          <small id="syncRosterCountStatus">目前採手動輸入；需要時再按上方按鈕</small>
+        </div>
 
         <div class="field">
           <div class="fieldText">
             <label for="familyFullCount">親友打滿 4 小時幾人</label>
             <small>只有這些人加入最後均分</small>
           </div>
-          <input id="familyFullCount" type="number" inputmode="numeric" min="0" value="0">
+          <input id="familyFullCount" type="number" inputmode="numeric" min="0" placeholder="0">
         </div>
 
         <div class="field">
@@ -56,7 +56,7 @@
             <label for="familyShortCount">親友未滿 4 小時幾人</label>
             <small>每人固定 $250，不加入均分</small>
           </div>
-          <input id="familyShortCount" type="number" inputmode="numeric" min="0" value="0">
+          <input id="familyShortCount" type="number" inputmode="numeric" min="0" placeholder="0">
         </div>
 
         <div class="field">
@@ -64,7 +64,7 @@
             <label for="funOutsideCount">外面的人打歡樂場幾人</label>
             <small>每人固定 $350</small>
           </div>
-          <input id="funOutsideCount" type="number" inputmode="numeric" min="0" value="0">
+          <input id="funOutsideCount" type="number" inputmode="numeric" min="0" placeholder="0">
         </div>
 
         <button id="clearTodayBtn" class="ghost full" type="button">清空今日人數</button>
@@ -145,6 +145,22 @@
           <button id="addBtn" class="secondary" type="submit">加入</button>
         </form>
 
+        <div class="memoryBlock">
+          <div class="memoryHeader">
+            <div>
+              <strong>常用球友</strong>
+              <small>記住常來的人，下次點一下就加入</small>
+            </div>
+            <button id="rememberRosterBtn" class="ghost memoryAction" type="button">記住目前名單</button>
+          </div>
+          <div id="memoryPeopleList" class="memoryPeopleList"></div>
+          <div class="buttonRow">
+            <button id="addAllMemoryBtn" class="ghost" type="button">全部加入本場</button>
+            <button id="clearRosterBtn" class="ghost" type="button">清空本場名單</button>
+            <button id="clearMemoryBtn" class="dangerSmall" type="button">清除常用球友</button>
+          </div>
+        </div>
+
         <div id="rosterList" class="rosterList"></div>
 
         <div class="buttonRow">
@@ -210,7 +226,7 @@
         <strong>目前輪轉規則</strong>
         <p>每一局都會重新隨機抽人。6 人以下：目標下 2 人；7–8 人：下 3 人；9 人以上：下 4 人。</p>
         <p>目前場上、下場者與候補上場者都採隨機抽選；如果候補人數不足（例如只有 5 人），會自動少下一人，確保場上一直維持 4 人。</p>
-        <p>排場中仍可直接修改姓名；新增、刪除、調整順序請先按「結束排場／編輯名單」。</p>
+        <p>排場中仍可直接修改姓名；新增、刪除、調整順序請先按「結束排場／編輯名單」。常用球友會另外記住，不受本場名單清空影響。</p>
       </div>
     </section>
   </main>
