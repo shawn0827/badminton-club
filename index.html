@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#f5f7fb" />
+  <title>羽球分攤計算器</title>
+  <style>
+    :root{
+      --bg:#f5f7fb; --card:#fff; --text:#111827; --muted:#6b7280;
+      --line:#e5e7eb; --blue:#2563eb;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang TC","Noto Sans TC",sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    .wrap{
+      max-width:560px;margin:0 auto;
+      padding:calc(18px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom))
+    }
+    h1{font-size:27px;margin:0 0 5px;font-weight:800}
+    .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+    .card{
+      background:var(--card);border-radius:18px;padding:16px;margin:12px 0;
+      box-shadow:0 5px 20px rgba(0,0,0,.05)
+    }
+    .sectionTitle{font-size:17px;font-weight:750;margin:0 0 12px}
+    .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+    .row:last-child{border-bottom:none}
+    .label{flex:1;font-size:16px}
+    .desc{font-size:12px;color:var(--muted);margin-top:3px}
+    input{
+      width:105px;border:1px solid #d1d5db;background:#fff;border-radius:12px;
+      font-size:18px;padding:10px 11px;text-align:right;outline:none
+    }
+    input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .moneyWrap{display:flex;align-items:center;gap:4px;color:var(--muted)}
+    .resultCard{
+      background:linear-gradient(135deg,#1d4ed8,#2563eb);color:white;border-radius:22px;
+      padding:20px;margin:14px 0;box-shadow:0 10px 25px rgba(37,99,235,.24)
+    }
+    .resultLabel{font-size:14px;opacity:.85}
+    .big{font-size:42px;font-weight:850;letter-spacing:-1.5px;margin:5px 0 2px}
+    .small{font-size:14px;opacity:.9}
+    .metric{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.18)}
+    .metric:last-child{border-bottom:0}
+    details summary{font-size:16px;font-weight:700;cursor:pointer;list-style:none}
+    details summary::-webkit-details-marker{display:none}
+    .formula{font-size:13px;line-height:1.65;color:var(--muted);margin-top:10px;background:#f9fafb;padding:12px;border-radius:12px}
+    .btn{
+      width:100%;border:0;border-radius:14px;padding:13px 16px;font-size:16px;font-weight:750;
+      background:#111827;color:#fff;margin-top:10px
+    }
+    .hint{font-size:12px;color:var(--muted);line-height:1.55;margin-top:10px}
+    .tag{display:inline-block;font-size:12px;padding:3px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;margin-left:6px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏸 羽球分攤計算器</h1>
+  <div class="sub">輸入各類人數，自動算出打滿 4 小時的親友每人應收多少</div>
+
+  <div class="card">
+    <div class="sectionTitle">今天人數</div>
+
+    <div class="row">
+      <div class="label">
+        臨打幾人
+        <div class="desc">預設每人收 $350</div>
+      </div>
+      <input id="walkInCount" type="number" inputmode="numeric" min="0" placeholder="0">
+    </div>
+
+    <div class="row">
+      <div class="label">
+        親友打滿 4 小時幾人
+        <span class="tag">加入均分</span>
+        <div class="desc">只有這些人會平均分攤剩餘費用</div>
+      </div>
+      <input id="familyFullCount" type="number" inputmode="numeric" min="0" placeholder="0">
+    </div>
+
+    <div class="row">
+      <div class="label">
+        親友未滿 4 小時幾人
+        <div class="desc">每人固定收 $250，不加入均分</div>
+      </div>
+      <input id="familyShortCount" type="number" inputmode="numeric" min="0" placeholder="0">
+    </div>
+
+    <div class="row">
+      <div class="label">
+        外面的人打歡樂場幾人
+        <div class="desc">每人固定收 $350</div>
+      </div>
+      <input id="funOutsideCount" type="number" inputmode="numeric" min="0" placeholder="0">
+    </div>
+  </div>
+
+  <div class="resultCard">
+    <div class="resultLabel">打滿 4 小時親友｜每人應收</div>
+    <div id="perPerson" class="big">—</div>
+    <div id="familyInfo" class="small">請先輸入打滿 4 小時的親友人數</div>
+
+    <div style="height:10px"></div>
+    <div class="metric"><span>臨打場收入</span><strong id="walkInIncome">$0</strong></div>
+    <div class="metric"><span>臨打場盈虧</span><strong id="walkInProfit">$0</strong></div>
+    <div class="metric"><span>親友未滿 4 小時收入</span><strong id="shortIncome">$0</strong></div>
+    <div class="metric"><span>外部歡樂場收入</span><strong id="funIncome">$0</strong></div>
+    <div class="metric"><span>打滿 4 小時親友需分攤總額</span><strong id="familyTotal">$0</strong></div>
+    <div class="metric"><span>今日總收入（依目前計算）</span><strong id="totalIncome">$0</strong></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>⚙️ 價格設定</summary>
+
+      <div class="row" style="margin-top:8px">
+        <div class="label">基準費用</div>
+        <div class="moneyWrap">$ <input id="baseCost" type="number" inputmode="decimal" value="2700"></div>
+      </div>
+
+      <div class="row">
+        <div class="label">臨打場成本</div>
+        <div class="moneyWrap">$ <input id="walkInCourtCost" type="number" inputmode="decimal" value="1700"></div>
+      </div>
+
+      <div class="row">
+        <div class="label">臨打每人收費</div>
+        <div class="moneyWrap">$ <input id="walkInPrice" type="number" inputmode="decimal" value="350"></div>
+      </div>
+
+      <div class="row">
+        <div class="label">親友未滿 4 小時</div>
+        <div class="moneyWrap">$ <input id="shortPrice" type="number" inputmode="decimal" value="250"></div>
+      </div>
+
+      <div class="row">
+        <div class="label">外部歡樂場每人</div>
+        <div class="moneyWrap">$ <input id="funPrice" type="number" inputmode="decimal" value="350"></div>
+      </div>
+
+      <button class="btn" id="resetBtn">恢復預設價格</button>
+
+      <div class="formula">
+        計算公式：<br><br>
+        ［2700 −（臨打收入 − 1700）−（親友未滿4小時人數 × 250）−（外部歡樂場人數 × 350）］<br>
+        ÷ 打滿4小時親友人數
+        <br><br>
+        臨打收入 = 臨打人數 × 350
+      </div>
+    </details>
+  </div>
+
+  <div class="hint">
+    價格設定會自動記在這支 iPhone。人數不會保存，下一場可以直接重新輸入。
+  </div>
+</div>
+
+<script>
+  const countIds = ["walkInCount","familyFullCount","familyShortCount","funOutsideCount"];
+  const settingIds = ["baseCost","walkInCourtCost","walkInPrice","shortPrice","funPrice"];
+  const allIds = [...countIds, ...settingIds];
+
+  const $ = id => document.getElementById(id);
+  const n = id => Number($(id).value) || 0;
+  const money = v => new Intl.NumberFormat("zh-TW", {
+    style:"currency", currency:"TWD", maximumFractionDigits:0
+  }).format(Math.round(v));
+
+  function saveSettings(){
+    settingIds.forEach(id => localStorage.setItem("badminton_v2_"+id, $(id).value));
+  }
+
+  function loadSettings(){
+    settingIds.forEach(id => {
+      const value = localStorage.getItem("badminton_v2_"+id);
+      if(value !== null) $(id).value = value;
+    });
+  }
+
+  function calc(){
+    const walkInCount = n("walkInCount");
+    const familyFullCount = n("familyFullCount");
+    const familyShortCount = n("familyShortCount");
+    const funOutsideCount = n("funOutsideCount");
+
+    const baseCost = n("baseCost");
+    const walkInCourtCost = n("walkInCourtCost");
+    const walkInPrice = n("walkInPrice");
+    const shortPrice = n("shortPrice");
+    const funPrice = n("funPrice");
+
+    const walkInIncome = walkInCount * walkInPrice;
+    const walkInProfit = walkInIncome - walkInCourtCost;
+
+    const shortIncome = familyShortCount * shortPrice;
+    const funIncome = funOutsideCount * funPrice;
+
+    const familyTotal = baseCost - walkInProfit - shortIncome - funIncome;
+
+    $("walkInIncome").textContent = money(walkInIncome);
+    $("walkInProfit").textContent = (walkInProfit > 0 ? "+" : "") + money(walkInProfit);
+    $("shortIncome").textContent = money(shortIncome);
+    $("funIncome").textContent = money(funIncome);
+    $("familyTotal").textContent = money(familyTotal);
+
+    if(familyFullCount > 0){
+      const perPerson = familyTotal / familyFullCount;
+      $("perPerson").textContent = money(perPerson);
+      $("familyInfo").textContent = `打滿 4 小時親友 ${familyFullCount} 人平均分攤`;
+
+      const totalIncome =
+        walkInIncome +
+        shortIncome +
+        funIncome +
+        perPerson * familyFullCount;
+
+      $("totalIncome").textContent = money(totalIncome);
+    } else {
+      $("perPerson").textContent = "—";
+      $("familyInfo").textContent = "請先輸入打滿 4 小時的親友人數";
+      $("totalIncome").textContent = money(walkInIncome + shortIncome + funIncome);
+    }
+
+    saveSettings();
+  }
+
+  allIds.forEach(id => $(id).addEventListener("input", calc));
+
+  $("resetBtn").addEventListener("click", () => {
+    $("baseCost").value = 2700;
+    $("walkInCourtCost").value = 1700;
+    $("walkInPrice").value = 350;
+    $("shortPrice").value = 250;
+    $("funPrice").value = 350;
+    calc();
+  });
+
+  loadSettings();
+  calc();
+</script>
+</body>
+</html>
