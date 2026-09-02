@@ -1,4 +1,4 @@
-const CACHE = "badminton-tools-v5-pull-refresh";
+const CACHE = "badminton-tools-v7-lowest-first";
 const ASSETS = ["./","./index.html","./style.css","./app.js","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 
 self.addEventListener("install", event => {

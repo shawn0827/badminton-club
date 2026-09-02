@@ -12,7 +12,7 @@
   const KEYS = {
     settings: "badminton_tools_settings_v3",
     roster: "badminton_tools_roster_v3",
-    rotation: "badminton_tools_rotation_v3",
+    rotation: "badminton_tools_rotation_v7_lowest_first",
     calc: "badminton_tools_calc_v3",
     memory: "badminton_tools_people_memory_v1",
     tab: "badminton_tools_tab_v3"
@@ -524,9 +524,9 @@
   }
 
   function ruleText(total) {
-    if (total >= 9) return "9 人以上：隨機上 4 下 4";
-    if (total >= 7) return "7–8 人：隨機上 4 下 3";
-    return "6 人以下：隨機上 4 下 2";
+    if (total >= 9) return "9 人以上：最少局數優先，上 4 下 4";
+    if (total >= 7) return "7–8 人：最少局數優先，上 4 下 3";
+    return "6 人以下：最少局數優先，上 4 下 2";
   }
 
   function updateRuleBadge() {
@@ -549,8 +549,27 @@
     return result;
   }
 
-  function randomPick(array, count) {
-    return shuffle(array).slice(0, Math.max(0, Math.min(count, array.length)));
+  function pickLowestFirst(array, count, scoreFn) {
+    if (count <= 0 || !array.length) return [];
+
+    const groups = new Map();
+    array.forEach(name => {
+      const score = Number(scoreFn(name)) || 0;
+      if (!groups.has(score)) groups.set(score, []);
+      groups.get(score).push(name);
+    });
+
+    const scores = [...groups.keys()].sort((a,b) => a - b);
+    const picked = [];
+
+    for (const score of scores) {
+      const sameScore = shuffle(groups.get(score));
+      for (const name of sameScore) {
+        if (picked.length >= count) return picked;
+        picked.push(name);
+      }
+    }
+    return picked;
   }
 
   function createRandomPlan() {
@@ -560,16 +579,43 @@
 
     const requested = requestedOffCount(roster.length);
     const actual = actualOffCount();
+    const stayCount = 4 - actual;
 
-    // 每局重新隨機決定誰下場、誰從候補上場。
-    const outgoing = randomPick(rotation.court, actual);
-    const stayers = rotation.court.filter(name => !outgoing.includes(name));
-    const incoming = randomPick(rotation.queue, actual);
+    // 下一場預覽時，先把目前正在進行的這一局算進場上四人的局數。
+    const effectiveGames = {};
+    roster.forEach(name => {
+      effectiveGames[name] =
+        (rotation.games[name] || 0) +
+        (rotation.court.includes(name) ? 1 : 0);
+    });
 
-    // 四位下一場球員再洗牌一次，連場上位置／搭檔也隨機。
+    // 候補：局數最少者優先；同局數才隨機。
+    const incoming = pickLowestFirst(
+      rotation.queue,
+      actual,
+      name => effectiveGames[name]
+    );
+
+    // 留場：場上局數較少者優先；同局數才隨機。
+    const stayers = pickLowestFirst(
+      rotation.court,
+      stayCount,
+      name => effectiveGames[name]
+    );
+
+    const outgoing = rotation.court.filter(name => !stayers.includes(name));
+
+    // 人選決定後，四個場上位置／搭檔仍然隨機。
     const next = shuffle([...stayers, ...incoming]);
 
-    return { next, stayers, incoming, outgoing, requested, actual };
+    return {
+      next,
+      stayers,
+      incoming,
+      outgoing,
+      requested,
+      actual
+    };
   }
 
   function ensureNextPlan() {
@@ -609,7 +655,7 @@
     rotation.nextPlan = createRandomPlan();
 
     saveAll();
-    setRosterMessage("已隨機安排第一場；每局結束後都會重新隨機抽下一場。", false);
+    setRosterMessage("第一場隨機安排；之後由上場局數最少的人優先，同局數再隨機。", false);
     renderRoster();
     renderRotation();
   }
@@ -697,15 +743,15 @@
       const box = document.createElement("div");
       const isStay = prediction.stayers.includes(name);
       box.className = "nextPerson" + (isStay ? " stay" : "");
-      box.textContent = isStay ? `⭐ ${name}｜隨機留場` : `🎲 ${name}｜隨機上場`;
+      box.textContent = isStay ? `⭐ ${name}｜少局優先留場` : `⬆️ ${name}｜少局優先上場`;
       nextGrid.appendChild(box);
     });
 
     let nextRule = ruleText(roster.length);
     if (prediction.actual < prediction.requested) {
-      nextRule += `；候補只有 ${rotation.queue.length} 人，因此本輪實際隨機下 ${prediction.actual} 人`;
+      nextRule += `；候補只有 ${rotation.queue.length} 人，因此本輪實際下 ${prediction.actual} 人`;
     } else {
-      nextRule += `；本輪隨機下 ${prediction.actual} 人`;
+      nextRule += `；少局者優先進下一局，同局數才隨機`;
     }
     $("nextRuleText").textContent = nextRule;
 
@@ -756,8 +802,8 @@
         title.textContent = `第 ${entry.round} 場｜${entry.court.join("、")}`;
 
         const detail = document.createElement("div");
-        const stayText = entry.stayers.length ? `隨機留：${entry.stayers.join("、")}` : "無留場";
-        const offText = entry.outgoing.length ? `隨機下：${entry.outgoing.join("、")}` : "無下場";
+        const stayText = entry.stayers.length ? `留場：${entry.stayers.join("、")}` : "無留場";
+        const offText = entry.outgoing.length ? `下場：${entry.outgoing.join("、")}` : "無下場";
         detail.textContent = `${stayText}｜${offText}`;
 
         item.append(title,detail);
