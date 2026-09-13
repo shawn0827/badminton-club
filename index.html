@@ -68,9 +68,9 @@
         <div class="field">
           <div class="fieldText">
             <label for="ballprice">球錢</label>
-            <small>固定700</small>
+            <small>預設 $700，可依當天用球調整</small>
           </div>
-          <input id="ballprice" type="number" inputmode="numeric" min="0" placeholder="0">
+          <input id="ballprice" type="number" inputmode="numeric" min="0" value="700">
         </div>
 
         <div class="field">
@@ -106,7 +106,7 @@
 
           <div class="field compact">
             <label for="baseCost">基準費用</label>
-            <div class="moneyInput"><span>$</span><input id="baseCost" type="number" inputmode="decimal" value="2700"></div>
+            <div class="moneyInput"><span>$</span><input id="baseCost" type="number" inputmode="decimal" value="2000"></div>
           </div>
 
           <div class="field compact">
@@ -135,8 +135,8 @@
           </div>
 
            <div class="field compact">
-            <label for="ballPrice">球錢</label>
-            <div class="moneyInput"><span>$</span><input id="ball" type="number" inputmode="decimal" value="700"></div>
+            <label for="defaultBallPrice">預設球錢</label>
+            <div class="moneyInput"><span>$</span><input id="defaultBallPrice" type="number" inputmode="decimal" value="700"></div>
           </div>
 
           <button id="resetPriceBtn" class="ghost full" type="button">恢復預設價格</button>

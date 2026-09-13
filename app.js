@@ -10,22 +10,23 @@
   }).format(Math.round(Number(value) || 0));
 
   const KEYS = {
-    settings: "badminton_tools_settings_v3",
+    settings: "badminton_tools_settings_v10",
     roster: "badminton_tools_roster_v3",
     rotation: "badminton_tools_rotation_v9_team_colors_random_first",
-    calc: "badminton_tools_calc_v3",
+    calc: "badminton_tools_calc_v10",
     memory: "badminton_tools_people_memory_v1",
     payment: "badminton_tools_payment_v1",
-    tab: "badminton_tools_tab_v9"
+    tab: "badminton_tools_tab_v10"
   };
 
   const defaultSettings = {
-    baseCost: 2700,
-    activeCost: 1700,
+    baseCost: 2000,
+    activeCost: 1000,
     emptyCost: 1000,
     walkInPrice: 250,
     shortPrice: 250,
-    funPrice: 350
+    funPrice: 350,
+    ballPrice: 700
   };
 
   let settings = loadJSON(KEYS.settings, defaultSettings);
@@ -34,6 +35,7 @@
     walkInCount: "",
     familyFullCount: "",
     familyShortCount: "",
+    ballprice: 700,
     funOutsideCount: ""
   });
 
@@ -133,14 +135,15 @@
   openTab(localStorage.getItem(KEYS.tab) || "calc");
 
   // ---------- Calculator ----------
-  const calcIds = ["walkInCount","familyFullCount","familyShortCount","funOutsideCount"];
+  const calcIds = ["walkInCount","familyFullCount","familyShortCount","ballprice","funOutsideCount"];
   const settingMap = {
     baseCost: "baseCost",
     walkInCourtCostActive: "activeCost",
     walkInCourtCostEmpty: "emptyCost",
     walkInPrice: "walkInPrice",
     shortPrice: "shortPrice",
-    funPrice: "funPrice"
+    funPrice: "funPrice",
+    defaultBallPrice: "ballPrice"
   };
 
   $("baseCost").value = settings.baseCost;
@@ -149,10 +152,12 @@
   $("walkInPrice").value = settings.walkInPrice;
   $("shortPrice").value = settings.shortPrice;
   $("funPrice").value = settings.funPrice;
+  $("defaultBallPrice").value = settings.ballPrice;
 
   $("walkInCount").value = calcState.walkInCount ?? "";
   $("familyFullCount").value = calcState.familyFullCount ?? "";
   $("familyShortCount").value = calcState.familyShortCount ?? "";
+  $("ballprice").value = calcState.ballprice ?? settings.ballPrice;
   $("funOutsideCount").value = calcState.funOutsideCount ?? "";
   $("rosterCountHint").textContent = "臨打每人 $250；目前採手動輸入";
 
@@ -169,6 +174,7 @@
     const walkInCount = clampCount($("walkInCount").value);
     const familyFullCount = clampCount($("familyFullCount").value);
     const familyShortCount = clampCount($("familyShortCount").value);
+    const ballCost = Math.max(0, Number($("ballprice").value) || 0);
     const funOutsideCount = clampCount($("funOutsideCount").value);
 
     const currentCourtCost = walkInCount > 0 ? Number(settings.activeCost) : Number(settings.emptyCost);
@@ -176,13 +182,14 @@
     const walkInProfit = walkInIncome - currentCourtCost;
     const shortIncome = familyShortCount * Number(settings.shortPrice);
     const funIncome = funOutsideCount * Number(settings.funPrice);
-    const familyTotal = Number(settings.baseCost) - walkInProfit - shortIncome - funIncome;
+    const familyTotal = Number(settings.baseCost) + ballCost - walkInProfit - shortIncome - funIncome;
 
     $("activeWalkInCourtCost").textContent = money(currentCourtCost);
     $("walkInIncome").textContent = money(walkInIncome);
     $("walkInProfit").textContent = (walkInProfit > 0 ? "+" : "") + money(walkInProfit);
     $("shortIncome").textContent = money(shortIncome);
     $("funIncome").textContent = money(funIncome);
+    $("ball").textContent = money(ballCost);
     $("familyTotal").textContent = money(familyTotal);
 
     if (familyFullCount > 0) {
@@ -197,6 +204,7 @@
     calcState.walkInCount = $("walkInCount").value;
     calcState.familyFullCount = $("familyFullCount").value;
     calcState.familyShortCount = $("familyShortCount").value;
+    calcState.ballprice = $("ballprice").value;
     calcState.funOutsideCount = $("funOutsideCount").value;
     saveAll();
   }
@@ -209,7 +217,18 @@
 
   Object.entries(settingMap).forEach(([elementId, key]) => {
     $(elementId).addEventListener("input", () => {
-      settings[key] = Math.max(0, Number($(elementId).value) || 0);
+      const previous = Number(settings[key]) || 0;
+      const next = Math.max(0, Number($(elementId).value) || 0);
+      settings[key] = next;
+
+      if (key === "ballPrice") {
+        const currentBall = Number($("ballprice").value);
+        if (!$("ballprice").value || currentBall === previous) {
+          $("ballprice").value = next;
+          calcState.ballprice = next;
+        }
+      }
+
       saveAll();
       calc();
     });
@@ -223,6 +242,9 @@
     $("walkInPrice").value = settings.walkInPrice;
     $("shortPrice").value = settings.shortPrice;
     $("funPrice").value = settings.funPrice;
+    $("defaultBallPrice").value = settings.ballPrice;
+    $("ballprice").value = settings.ballPrice;
+    calcState.ballprice = settings.ballPrice;
     saveAll();
     calc();
   });
@@ -231,10 +253,12 @@
     calcState.walkInCount = "";
     calcState.familyFullCount = "";
     calcState.familyShortCount = "";
+    calcState.ballprice = settings.ballPrice;
     calcState.funOutsideCount = "";
     $("walkInCount").value = "";
     $("familyFullCount").value = "";
     $("familyShortCount").value = "";
+    $("ballprice").value = settings.ballPrice;
     $("funOutsideCount").value = "";
     $("syncRosterCountStatus").textContent = "目前採手動輸入；需要時再按上方按鈕";
     calc();

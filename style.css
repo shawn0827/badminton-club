@@ -162,6 +162,7 @@ button{
 #walkInCount,
 #familyFullCount,
 #familyShortCount,
+#ballprice,
 #funOutsideCount {
   color: var(--text);
   font-weight: 650;
@@ -170,6 +171,7 @@ button{
 #walkInCount::placeholder,
 #familyFullCount::placeholder,
 #familyShortCount::placeholder,
+#ballprice::placeholder,
 #funOutsideCount::placeholder {
   color: #c5cad3;
   opacity: 1;
@@ -179,6 +181,7 @@ button{
 #walkInCount:focus::placeholder,
 #familyFullCount:focus::placeholder,
 #familyShortCount:focus::placeholder,
+#ballprice:focus::placeholder,
 #funOutsideCount:focus::placeholder {
   color: #d8dce3;
 }
