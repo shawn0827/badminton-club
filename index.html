@@ -22,7 +22,6 @@
   <header class="top">
     <div>
       <h1>🏸 羽球團工具</h1>
-      <p>收費分攤＋手動開場＋最少局數優先輪轉</p>
     </div>
   </header>
 
@@ -68,6 +67,14 @@
 
         <div class="field">
           <div class="fieldText">
+            <label for="ballprice">球錢</label>
+            <small>固定700</small>
+          </div>
+          <input id="ballprice" type="number" inputmode="numeric" min="0" placeholder="0">
+        </div>
+
+        <div class="field">
+          <div class="fieldText">
             <label for="funOutsideCount">外面的人打歡樂場幾人</label>
             <small>每人固定 $350</small>
           </div>
@@ -89,6 +96,7 @@
           <div><span>未滿 4 小時親友收入</span><strong id="shortIncome">$0</strong></div>
           <div><span>外部歡樂場收入</span><strong id="funIncome">$0</strong></div>
           <div><span>需由打滿 4 小時親友分攤</span><strong id="familyTotal">$0</strong></div>
+          <div><span>球錢</span><strong id="ball">$0</strong></div>
         </div>
       </div>
 
@@ -103,7 +111,7 @@
 
           <div class="field compact">
             <label for="walkInCourtCostActive">有臨打時場成本</label>
-            <div class="moneyInput"><span>$</span><input id="walkInCourtCostActive" type="number" inputmode="decimal" value="1700"></div>
+            <div class="moneyInput"><span>$</span><input id="walkInCourtCostActive" type="number" inputmode="decimal" value="1000"></div>
           </div>
 
           <div class="field compact">
@@ -126,12 +134,15 @@
             <div class="moneyInput"><span>$</span><input id="funPrice" type="number" inputmode="decimal" value="350"></div>
           </div>
 
+           <div class="field compact">
+            <label for="ballPrice">球錢</label>
+            <div class="moneyInput"><span>$</span><input id="ball" type="number" inputmode="decimal" value="700"></div>
+          </div>
+
           <button id="resetPriceBtn" class="ghost full" type="button">恢復預設價格</button>
 
           <div class="formula">
-            臨打 0 人 → 臨打場成本 $1,000<br>
-            臨打 ≥ 1 人 → 臨打場成本 $1,700<br><br>
-            ［2700 −（臨打收入 − 臨打場成本）− 未滿4小時收入 − 歡樂場收入］÷ 打滿4小時親友人數
+            ［2000 + 球錢 −（臨打收入 − 臨打場成本）− 未滿4小時收入 − 歡樂場收入］÷ 打滿4小時親友人數
           </div>
         </details>
       </div>
@@ -204,7 +215,7 @@
 
         <div id="rosterMessage" class="message" aria-live="polite"></div>
 
-        <button id="startBtn" class="primary full" type="button">用以上 4 人開始排場</button>
+        <button id="startBtn" class="primary full" type="button">開始排場</button>
       </div>
 
       <div id="gameArea" hidden>
@@ -232,7 +243,7 @@
               </div>
             </div>
             <div class="buttonRow">
-              <button id="saveCourtEditBtn" class="secondary" type="button">儲存場上人員</button>
+              <button id="saveCourtEditBtn" class="secondary" type="button">儲存</button>
               <button id="cancelCourtEditBtn" class="ghost" type="button">取消</button>
             </div>
             <div id="courtEditMessage" class="message"></div>
@@ -291,7 +302,6 @@
         <strong>目前輪轉規則</strong>
         <p>每一局採「最少局數優先」：目前累積上場次數最少的人，優先加入下一局；如果局數相同，再隨機抽。6 人以下：目標下 2 人；7–8 人：下 3 人；9 人以上：下 4 人。</p>
         <p>候補上場時先選目前局數最少的人；需要留場時，也優先從目前場上局數較少的人中選。只有局數相同時才隨機。如果候補人數不足（例如只有 5 人），會自動少下一人，確保場上一直維持 4 人。</p>
-        <p>第一場由你手動指定 A隊、B隊；開始後仍可按「修改場上」換人。常用球友會另外記住，不受本場名單清空影響。</p>
       </div>
     </section>
 
