@@ -2,8 +2,8 @@ const CACHE = "badminton-tools-v12-runtime";
 const CORE = [
   "./",
   "./index.html",
-  "./app-v12.js",
-  "./style-v12.css",
+  "./app.js",
+  "./style.css",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png"
@@ -31,8 +31,8 @@ self.addEventListener("fetch", event => {
   const sameOrigin = url.origin === self.location.origin;
   const isCritical =
     event.request.mode === "navigate" ||
-    url.pathname.endsWith("/app-v12.js") ||
-    url.pathname.endsWith("/style-v12.css") ||
+    url.pathname.endsWith("/app.js") ||
+    url.pathname.endsWith("/style.css") ||
     url.pathname.endsWith("/index.html");
 
   if (sameOrigin && isCritical) {
