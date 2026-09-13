@@ -10,19 +10,18 @@
   }).format(Math.round(Number(value) || 0));
 
   const KEYS = {
-    settings: "badminton_tools_settings_v10",
+    settings: "badminton_tools_settings_v11",
     roster: "badminton_tools_roster_v3",
     rotation: "badminton_tools_rotation_v9_team_colors_random_first",
-    calc: "badminton_tools_calc_v10",
+    calc: "badminton_tools_calc_v11",
     memory: "badminton_tools_people_memory_v1",
     payment: "badminton_tools_payment_v1",
-    tab: "badminton_tools_tab_v10"
+    tab: "badminton_tools_tab_v11"
   };
 
   const defaultSettings = {
     baseCost: 2000,
-    activeCost: 1000,
-    emptyCost: 1000,
+    courtCost: 1000,
     walkInPrice: 250,
     shortPrice: 250,
     funPrice: 350,
@@ -138,8 +137,7 @@
   const calcIds = ["walkInCount","familyFullCount","familyShortCount","ballprice","funOutsideCount"];
   const settingMap = {
     baseCost: "baseCost",
-    walkInCourtCostActive: "activeCost",
-    walkInCourtCostEmpty: "emptyCost",
+    walkInCourtCost: "courtCost",
     walkInPrice: "walkInPrice",
     shortPrice: "shortPrice",
     funPrice: "funPrice",
@@ -147,8 +145,7 @@
   };
 
   $("baseCost").value = settings.baseCost;
-  $("walkInCourtCostActive").value = settings.activeCost;
-  $("walkInCourtCostEmpty").value = settings.emptyCost;
+  $("walkInCourtCost").value = settings.courtCost;
   $("walkInPrice").value = settings.walkInPrice;
   $("shortPrice").value = settings.shortPrice;
   $("funPrice").value = settings.funPrice;
@@ -177,19 +174,19 @@
     const ballCost = Math.max(0, Number($("ballprice").value) || 0);
     const funOutsideCount = clampCount($("funOutsideCount").value);
 
-    const currentCourtCost = walkInCount > 0 ? Number(settings.activeCost) : Number(settings.emptyCost);
+    const currentCourtCost = Number(settings.courtCost);
     const walkInIncome = walkInCount * Number(settings.walkInPrice);
     const walkInProfit = walkInIncome - currentCourtCost;
     const shortIncome = familyShortCount * Number(settings.shortPrice);
     const funIncome = funOutsideCount * Number(settings.funPrice);
     const familyTotal = Number(settings.baseCost) + ballCost - walkInProfit - shortIncome - funIncome;
 
-    $("activeWalkInCourtCost").textContent = money(currentCourtCost);
+    $("walkInCourtCostResult").textContent = money(currentCourtCost);
     $("walkInIncome").textContent = money(walkInIncome);
     $("walkInProfit").textContent = (walkInProfit > 0 ? "+" : "") + money(walkInProfit);
     $("shortIncome").textContent = money(shortIncome);
     $("funIncome").textContent = money(funIncome);
-    $("ball").textContent = money(ballCost);
+    $("ballCostResult").textContent = money(ballCost);
     $("familyTotal").textContent = money(familyTotal);
 
     if (familyFullCount > 0) {
@@ -210,15 +207,19 @@
   }
 
   calcIds.forEach(id => {
-    $(id).addEventListener("input", calc);
+    const element = $(id);
+    element.addEventListener("input", calc);
+    element.addEventListener("change", calc);
   });
 
   $("syncRosterCountBtn").addEventListener("click", useRosterCountOnce);
 
   Object.entries(settingMap).forEach(([elementId, key]) => {
-    $(elementId).addEventListener("input", () => {
+    const element = $(elementId);
+
+    const applySetting = () => {
       const previous = Number(settings[key]) || 0;
-      const next = Math.max(0, Number($(elementId).value) || 0);
+      const next = Math.max(0, Number(element.value) || 0);
       settings[key] = next;
 
       if (key === "ballPrice") {
@@ -231,14 +232,16 @@
 
       saveAll();
       calc();
-    });
+    };
+
+    element.addEventListener("input", applySetting);
+    element.addEventListener("change", applySetting);
   });
 
   $("resetPriceBtn").addEventListener("click", () => {
     settings = structuredCloneSafe(defaultSettings);
     $("baseCost").value = settings.baseCost;
-    $("walkInCourtCostActive").value = settings.activeCost;
-    $("walkInCourtCostEmpty").value = settings.emptyCost;
+    $("walkInCourtCost").value = settings.courtCost;
     $("walkInPrice").value = settings.walkInPrice;
     $("shortPrice").value = settings.shortPrice;
     $("funPrice").value = settings.funPrice;

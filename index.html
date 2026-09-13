@@ -68,7 +68,7 @@
         <div class="field">
           <div class="fieldText">
             <label for="ballprice">球錢</label>
-            <small>6顆以下350，以上都算700</small>
+            <small>預設 $700，可依當天用球調整</small>
           </div>
           <input id="ballprice" type="number" inputmode="numeric" min="0" value="700">
         </div>
@@ -90,13 +90,13 @@
         <div id="familyInfo" class="resultSub">請輸入打滿 4 小時親友人數</div>
 
         <div class="resultRows">
-          <div><span>目前臨打場成本</span><strong id="activeWalkInCourtCost">$1,000</strong></div>
+          <div><span>臨打場成本</span><strong id="walkInCourtCostResult">$1,000</strong></div>
           <div><span>臨打場收入</span><strong id="walkInIncome">$0</strong></div>
           <div><span>臨打場盈虧</span><strong id="walkInProfit">$0</strong></div>
           <div><span>未滿 4 小時親友收入</span><strong id="shortIncome">$0</strong></div>
           <div><span>外部歡樂場收入</span><strong id="funIncome">$0</strong></div>
           <div><span>需由打滿 4 小時親友分攤</span><strong id="familyTotal">$0</strong></div>
-          <div><span>球錢</span><strong id="ball">$0</strong></div>
+          <div><span>當日球錢</span><strong id="ballCostResult">$700</strong></div>
         </div>
       </div>
 
@@ -108,15 +108,9 @@
             <label for="baseCost">基準費用</label>
             <div class="moneyInput"><span>$</span><input id="baseCost" type="number" inputmode="decimal" value="2000"></div>
           </div>
-
           <div class="field compact">
-            <label for="walkInCourtCostActive">有臨打時場成本</label>
-            <div class="moneyInput"><span>$</span><input id="walkInCourtCostActive" type="number" inputmode="decimal" value="1000"></div>
-          </div>
-
-          <div class="field compact">
-            <label for="walkInCourtCostEmpty">無臨打時場成本</label>
-            <div class="moneyInput"><span>$</span><input id="walkInCourtCostEmpty" type="number" inputmode="decimal" value="1000"></div>
+            <label for="walkInCourtCost">臨打場成本</label>
+            <div class="moneyInput"><span>$</span><input id="walkInCourtCost" type="number" inputmode="decimal" value="1000"></div>
           </div>
 
           <div class="field compact">
@@ -142,7 +136,7 @@
           <button id="resetPriceBtn" class="ghost full" type="button">恢復預設價格</button>
 
           <div class="formula">
-            ［2000 + 球錢 −（臨打收入 − 臨打場成本）− 未滿4小時收入 − 歡樂場收入］÷ 打滿4小時親友人數
+            ［2000 + 當日球錢 −（臨打收入 − 固定臨打場成本1000）− 未滿4小時收入 − 歡樂場收入］÷ 打滿4小時親友人數
           </div>
         </details>
       </div>

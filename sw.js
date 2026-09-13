@@ -1,4 +1,4 @@
-const CACHE = "badminton-tools-v10-user-index-ball";
+const CACHE = "badminton-tools-v11-ball-sync-fixed-court-cost";
 const ASSETS = ["./","./index.html","./style.css","./app.js","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 
 self.addEventListener("install", event => {
