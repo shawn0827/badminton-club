@@ -305,3 +305,77 @@ button{
   .paymentAddForm button{grid-column:1 / -1}
   .paymentRow{grid-template-columns:32px minmax(0,1fr) 80px 40px;gap:5px}
 }
+
+
+/* v9：隊色同步到場上、常用球友單獨刪除、隨機第一場 */
+.lineupHint{
+  display:block;
+  text-align:center;
+  margin-top:7px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.courtPlayer.cp0,
+.courtPlayer.cp2{
+  background:rgba(219,234,254,.88);
+  color:#1d4ed8;
+  border-radius:12px;
+}
+
+.courtPlayer.cp1,
+.courtPlayer.cp3{
+  background:rgba(255,237,213,.90);
+  color:#9a3412;
+  border-radius:12px;
+}
+
+.courtPlayer.cp0 .courtSlotTag,
+.courtPlayer.cp2 .courtSlotTag{
+  background:#dbeafe;
+  color:#1d4ed8;
+}
+
+.courtPlayer.cp1 .courtSlotTag,
+.courtPlayer.cp3 .courtSlotTag{
+  background:#ffedd5;
+  color:#9a3412;
+}
+
+.memoryPersonWrap{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:2px;
+  border:1px solid #dbe2ea;
+  background:#fff;
+  border-radius:999px;
+}
+
+.memoryPersonWrap.inRoster{
+  background:#ecfdf3;
+  border-color:#bbefcc;
+}
+
+.memoryPersonWrap .memoryPerson{
+  border:0;
+  background:transparent;
+  min-height:34px;
+  padding:6px 8px 6px 10px;
+}
+
+.memoryDelete{
+  border:0;
+  background:transparent;
+  color:#9ca3af;
+  width:30px;
+  min-height:30px;
+  padding:0;
+  border-radius:999px;
+  font-size:15px;
+}
+
+.memoryDelete:active{
+  background:#fee2e2;
+  color:#991b1b;
+}

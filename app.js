@@ -12,11 +12,11 @@
   const KEYS = {
     settings: "badminton_tools_settings_v3",
     roster: "badminton_tools_roster_v3",
-    rotation: "badminton_tools_rotation_v8_manual_start",
+    rotation: "badminton_tools_rotation_v9_team_colors_random_first",
     calc: "badminton_tools_calc_v3",
     memory: "badminton_tools_people_memory_v1",
     payment: "badminton_tools_payment_v1",
-    tab: "badminton_tools_tab_v8"
+    tab: "badminton_tools_tab_v9"
   };
 
   const defaultSettings = {
@@ -330,12 +330,15 @@
     }
 
     peopleMemory.forEach(name => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "memoryPerson" + (roster.includes(name) ? " inRoster" : "");
-      btn.textContent = roster.includes(name) ? `✓ ${name}` : `＋ ${name}`;
-      btn.disabled = rotation.active && !roster.includes(name);
-      btn.addEventListener("click", () => {
+      const wrap = document.createElement("span");
+      wrap.className = "memoryPersonWrap" + (roster.includes(name) ? " inRoster" : "");
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "memoryPerson";
+      addBtn.textContent = roster.includes(name) ? `✓ ${name}` : `＋ ${name}`;
+      addBtn.disabled = rotation.active && !roster.includes(name);
+      addBtn.addEventListener("click", () => {
         if (roster.includes(name)) return;
         if (rotation.active) {
           setRosterMessage("排場中不能新增人員，請先結束排場");
@@ -350,7 +353,23 @@
         renderRoster();
         setRosterMessage(`${name} 已加入本場`, false);
       });
-      list.appendChild(btn);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "memoryDelete";
+      deleteBtn.textContent = "×";
+      deleteBtn.title = `刪除常用球友 ${name}`;
+      deleteBtn.setAttribute("aria-label", `刪除常用球友 ${name}`);
+      deleteBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        peopleMemory = peopleMemory.filter(person => person !== name);
+        saveAll();
+        renderPeopleMemory();
+        setRosterMessage(`${name} 已從常用球友刪除；本場名單不受影響`, false);
+      });
+
+      wrap.append(addBtn, deleteBtn);
+      list.appendChild(wrap);
     });
   }
 
@@ -475,6 +494,7 @@
     $("demo8Btn").disabled = rotation.active;
     $("demo10Btn").disabled = rotation.active;
     $("startBtn").disabled = rotation.active;
+    if ($("randomFirstLineupBtn")) $("randomFirstLineupBtn").disabled = rotation.active;
     firstLineupIds.forEach(id => {
       if ($(id)) $(id).disabled = rotation.active;
     });
@@ -576,6 +596,30 @@
     if (court.some(name => !roster.includes(name))) return {ok:false, message:"場上人員必須在臨打名單內"};
     return {ok:true};
   }
+
+  function randomizeFirstLineup() {
+    if (rotation.active) return;
+
+    if (roster.length < 4) {
+      setRosterMessage("至少需要 4 人才能隨機分配第一場");
+      return;
+    }
+
+    const picked = shuffle(roster).slice(0,4);
+
+    // select 顯示順序：A1、A2、B1、B2
+    $("firstA1").value = picked[0];
+    $("firstA2").value = picked[1];
+    $("firstB1").value = picked[2];
+    $("firstB2").value = picked[3];
+
+    setRosterMessage(
+      `已隨機第一場：A隊 ${picked[0]}、${picked[1]}｜B隊 ${picked[2]}、${picked[3]}`,
+      false
+    );
+  }
+
+  $("randomFirstLineupBtn").addEventListener("click", randomizeFirstLineup);
 
   function openCourtEditor() {
     if (!rotation.active || rotation.court.length !== 4) return;
