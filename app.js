@@ -10,13 +10,13 @@
   }).format(Math.round(Number(value) || 0));
 
   const KEYS = {
-    settings: "badminton_tools_settings_v11",
+    settings: "badminton_tools_settings_v12",
     roster: "badminton_tools_roster_v3",
     rotation: "badminton_tools_rotation_v9_team_colors_random_first",
-    calc: "badminton_tools_calc_v11",
+    calc: "badminton_tools_calc_v12",
     memory: "badminton_tools_people_memory_v1",
     payment: "badminton_tools_payment_v1",
-    tab: "badminton_tools_tab_v11"
+    tab: "badminton_tools_tab_v12"
   };
 
   const defaultSettings = {
@@ -168,6 +168,17 @@
   }
 
   function calc() {
+    const requiredCalcIds = [
+      "walkInCount","familyFullCount","familyShortCount","ballprice","funOutsideCount",
+      "walkInCourtCostResult","walkInIncome","walkInProfit","shortIncome","funIncome",
+      "ballCostResult","familyTotal","perPerson","familyInfo"
+    ];
+    const missingCalcIds = requiredCalcIds.filter(id => !$(id));
+    if (missingCalcIds.length) {
+      console.error("Calculator UI missing:", missingCalcIds);
+      return;
+    }
+
     const walkInCount = clampCount($("walkInCount").value);
     const familyFullCount = clampCount($("familyFullCount").value);
     const familyShortCount = clampCount($("familyShortCount").value);
@@ -1348,6 +1359,10 @@
   })();
 
   // ---------- Init ----------
+  window.addEventListener("pageshow", () => {
+    calc();
+  });
+
   calc();
   renderPeopleMemory();
   renderPayments();
