@@ -1,4 +1,4 @@
-const CACHE = "badminton-tools-v7-lowest-first";
+const CACHE = "badminton-tools-v8-manual-payment";
 const ASSETS = ["./","./index.html","./style.css","./app.js","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 
 self.addEventListener("install", event => {

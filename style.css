@@ -19,12 +19,12 @@ button{touch-action:manipulation}
 .top h1{margin:0;font-size:27px;letter-spacing:-.4px}
 .top p{margin:4px 0 0;color:var(--muted);font-size:14px}
 .tabs{
-  display:grid;grid-template-columns:1fr 1fr;gap:5px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;
   background:#e9ecf2;border-radius:14px;padding:4px;margin-bottom:12px
 }
 .tab{
   border:0;background:transparent;min-height:46px;border-radius:11px;
-  font-size:15px;font-weight:750;color:#4b5563
+  font-size:13px;font-weight:750;color:#4b5563
 }
 .tab.active{background:#fff;color:#111827;box-shadow:0 1px 5px rgba(0,0,0,.08)}
 .page{display:none}.page.active{display:block}
@@ -244,4 +244,64 @@ button{
   .pullRefresh.refreshing .pullRefreshIcon{
     animation:none;
   }
+}
+
+
+/* v8：A/B 隊、手動場上與收費名單 */
+.lineupSetup{margin-top:12px;padding:13px;background:#f8fafc;border-radius:14px}
+.teamSelectGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.teamSelectCard{border-radius:14px;padding:11px;border:1px solid var(--line)}
+.teamABox{background:#f0f7ff}.teamBBox{background:#fff7ed}
+.teamSelectTitle{font-weight:850;margin-bottom:8px;text-align:center}
+.teamSelectCard label{display:block;font-size:12px;color:var(--muted);margin-top:7px}
+.lineupSelect{
+  display:block;width:100%;margin-top:4px;min-height:44px;border:1px solid #d1d5db;
+  border-radius:11px;background:#fff;padding:9px 10px;font-size:16px;color:var(--text)
+}
+.teamLegend{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 7px}
+.teamLegend span{text-align:center;font-weight:850;border-radius:10px;padding:7px 8px}
+.teamALabel{background:#eaf3ff;color:#1d4ed8}.teamBLabel{background:#fff0df;color:#9a3412}
+.courtHeaderActions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.miniBtn{min-height:36px;padding:6px 9px;font-size:12px}
+.courtEditPanel{margin-top:10px;padding:12px;border-radius:14px;background:#f8fafc}
+.courtPlayer{flex-direction:column;gap:3px}
+.courtPlayer .courtSlotTag{
+  display:inline-block;font-size:11px;font-weight:850;padding:2px 7px;border-radius:999px;
+  background:rgba(255,255,255,.82);color:#374151
+}
+.courtPlayer .courtPersonName{font-size:16px;font-weight:850;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.nextPerson .nextTeamTag{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+
+.paymentAddForm{display:grid;grid-template-columns:minmax(0,1fr) 104px auto;gap:8px;margin-top:12px}
+.paymentAddForm>input,.paymentAmountInput input{
+  min-width:0;min-height:44px;border:1px solid #d1d5db;border-radius:12px;
+  background:#fff;padding:10px;font-size:16px;outline:none
+}
+.paymentAmountInput{display:flex;align-items:center;gap:4px;color:var(--muted)}
+.paymentAmountInput input{width:82px;text-align:right}
+.paymentSummary{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
+.paymentStat{background:#fff;border-radius:15px;padding:13px;box-shadow:0 4px 18px rgba(0,0,0,.04)}
+.paymentStat span{display:block;font-size:12px;color:var(--muted)}
+.paymentStat strong{display:block;font-size:22px;margin-top:3px}
+.paymentListHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.paymentList{display:grid;gap:8px}
+.paymentRow{
+  display:grid;grid-template-columns:34px minmax(0,1fr) 88px 44px;align-items:center;
+  gap:7px;background:#f8fafc;border-radius:13px;padding:8px
+}
+.paymentCheck{width:24px;height:24px;margin:0;accent-color:var(--accent)}
+.paymentNameInput,.paymentMoneyInput{
+  min-width:0;width:100%;min-height:42px;border:1px solid #d1d5db;border-radius:10px;
+  background:#fff;padding:8px;font-size:15px
+}
+.paymentMoneyInput{text-align:right}.paymentRow.paid{background:#ecfdf3}
+.paymentDelete{min-height:40px;width:40px;padding:0;background:#fee2e2;color:#991b1b}
+.paymentStatusText{grid-column:2 / -1;font-size:12px;color:var(--muted);margin-top:-2px}
+.paymentNote{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
+
+@media(max-width:390px){
+  .teamSelectGrid{grid-template-columns:1fr}
+  .paymentAddForm{grid-template-columns:minmax(0,1fr) 94px}
+  .paymentAddForm button{grid-column:1 / -1}
+  .paymentRow{grid-template-columns:32px minmax(0,1fr) 80px 40px;gap:5px}
 }

@@ -22,13 +22,14 @@
   <header class="top">
     <div>
       <h1>🏸 羽球團工具</h1>
-      <p>收費分攤＋最少局數優先輪轉</p>
+      <p>收費分攤＋手動開場＋最少局數優先輪轉</p>
     </div>
   </header>
 
   <nav class="tabs" aria-label="功能切換">
-    <button type="button" class="tab active" data-tab="calc">💰 收費計算</button>
-    <button type="button" class="tab" data-tab="rotation">🏸 上場輪轉</button>
+    <button type="button" class="tab active" data-tab="calc">💰 分攤</button>
+    <button type="button" class="tab" data-tab="rotation">🏸 排場</button>
+    <button type="button" class="tab" data-tab="payment">✅ 收費名單</button>
   </nav>
 
   <main>
@@ -175,19 +176,72 @@
           <button id="demo10Btn" class="ghost" type="button">測試 10 人</button>
         </div>
 
+
+        <div class="lineupSetup" id="firstLineupSetup">
+          <div class="sectionHeader">
+            <div>
+              <strong>第一場手動上場</strong>
+              <small>先選好 A隊、B隊各 2 人，再開始排場</small>
+            </div>
+            <span class="badge">手動</span>
+          </div>
+
+          <div class="teamSelectGrid">
+            <div class="teamSelectCard teamABox">
+              <div class="teamSelectTitle">A隊</div>
+              <label>A1<select id="firstA1" class="lineupSelect"></select></label>
+              <label>A2<select id="firstA2" class="lineupSelect"></select></label>
+            </div>
+            <div class="teamSelectCard teamBBox">
+              <div class="teamSelectTitle">B隊</div>
+              <label>B1<select id="firstB1" class="lineupSelect"></select></label>
+              <label>B2<select id="firstB2" class="lineupSelect"></select></label>
+            </div>
+          </div>
+        </div>
+
         <div id="rosterMessage" class="message" aria-live="polite"></div>
 
-        <button id="startBtn" class="primary full" type="button">開始排場</button>
+        <button id="startBtn" class="primary full" type="button">用以上 4 人開始排場</button>
       </div>
 
       <div id="gameArea" hidden>
         <div class="card">
           <div class="sectionHeader">
             <h2>目前場上</h2>
-            <span id="roundBadge" class="badge accent">第 1 場</span>
+            <div class="courtHeaderActions">
+              <button id="editCourtBtn" class="ghost miniBtn" type="button">✏️ 修改場上</button>
+              <span id="roundBadge" class="badge accent">第 1 場</span>
+            </div>
           </div>
 
-          <div class="court" aria-label="目前場上四位球友">
+          <div id="courtEditPanel" class="courtEditPanel" hidden>
+            <strong>修改目前場上</strong>
+            <div class="teamSelectGrid">
+              <div class="teamSelectCard teamABox">
+                <div class="teamSelectTitle">A隊</div>
+                <label>A1<select id="editA1" class="lineupSelect"></select></label>
+                <label>A2<select id="editA2" class="lineupSelect"></select></label>
+              </div>
+              <div class="teamSelectCard teamBBox">
+                <div class="teamSelectTitle">B隊</div>
+                <label>B1<select id="editB1" class="lineupSelect"></select></label>
+                <label>B2<select id="editB2" class="lineupSelect"></select></label>
+              </div>
+            </div>
+            <div class="buttonRow">
+              <button id="saveCourtEditBtn" class="secondary" type="button">儲存場上人員</button>
+              <button id="cancelCourtEditBtn" class="ghost" type="button">取消</button>
+            </div>
+            <div id="courtEditMessage" class="message"></div>
+          </div>
+
+          <div class="teamLegend" aria-hidden="true">
+            <span class="teamALabel">A隊</span>
+            <span class="teamBLabel">B隊</span>
+          </div>
+
+          <div class="court" aria-label="目前場上四位球友，左側 A隊，右側 B隊">
             <div class="courtLine centerV"></div>
             <div class="courtLine centerH"></div>
             <div id="court0" class="courtPlayer cp0">—</div>
@@ -235,9 +289,53 @@
         <strong>目前輪轉規則</strong>
         <p>每一局採「最少局數優先」：目前累積上場次數最少的人，優先加入下一局；如果局數相同，再隨機抽。6 人以下：目標下 2 人；7–8 人：下 3 人；9 人以上：下 4 人。</p>
         <p>候補上場時先選目前局數最少的人；需要留場時，也優先從目前場上局數較少的人中選。只有局數相同時才隨機。如果候補人數不足（例如只有 5 人），會自動少下一人，確保場上一直維持 4 人。</p>
-        <p>排場中仍可直接修改姓名；新增、刪除、調整順序請先按「結束排場／編輯名單」。常用球友會另外記住，不受本場名單清空影響。</p>
+        <p>第一場由你手動指定 A隊、B隊；開始後仍可按「修改場上」換人。常用球友會另外記住，不受本場名單清空影響。</p>
       </div>
     </section>
+
+    <section id="paymentPage" class="page">
+      <div class="card">
+        <div class="sectionHeader">
+          <div>
+            <h2>今日收費名單</h2>
+            <small>新增姓名後，會同時加入臨打名單</small>
+          </div>
+          <span class="badge accent">$250 / 人</span>
+        </div>
+
+        <form id="paymentAddForm" class="paymentAddForm">
+          <input id="paymentNameInput" type="text" maxlength="20" autocomplete="off" placeholder="輸入姓名">
+          <div class="paymentAmountInput"><span>$</span><input id="paymentAmountInput" type="number" inputmode="numeric" min="0" value="250"></div>
+          <button class="secondary" type="submit">加入</button>
+        </form>
+
+        <div class="buttonRow">
+          <button id="importRosterToPaymentsBtn" class="ghost" type="button">從臨打名單補齊</button>
+          <button id="syncPaymentsToRosterBtn" class="ghost" type="button">收費名單同步到臨打</button>
+          <button id="syncPaymentsCountToCalcBtn" class="ghost" type="button">帶入臨打人數到分攤</button>
+        </div>
+
+        <div id="paymentMessage" class="message" aria-live="polite"></div>
+      </div>
+
+      <div class="paymentSummary">
+        <div class="paymentStat"><span>收費人數</span><strong id="paymentTotalCount">0</strong></div>
+        <div class="paymentStat"><span>已收人數</span><strong id="paymentPaidCount">0</strong></div>
+        <div class="paymentStat"><span>已收金額</span><strong id="paymentPaidAmount">$0</strong></div>
+        <div class="paymentStat"><span>尚未收</span><strong id="paymentUnpaidAmount">$0</strong></div>
+      </div>
+
+      <div class="card">
+        <div class="paymentListHeader">
+          <strong>繳費狀態</strong>
+          <small>勾選後會自動保存</small>
+        </div>
+        <div id="paymentList" class="paymentList"></div>
+        <button id="clearPaymentsBtn" class="dangerSmall full" type="button">清空今日收費名單</button>
+        <div class="paymentNote">刪除收費紀錄不會自動刪除臨打名單，避免誤刪正在排場的人。</div>
+      </div>
+    </section>
+
   </main>
 </div>
 
