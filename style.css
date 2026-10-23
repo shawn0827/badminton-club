@@ -109,8 +109,51 @@ button{
 .nextGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .nextPerson{border:1px solid #dbe2ff;background:#f5f7ff;border-radius:12px;padding:11px;text-align:center;font-weight:750;font-size:14px}
 .nextPerson.stay{background:#ecfdf3;border-color:#bbefcc;color:#166534}
-.queueList{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px}
-.queueChip{white-space:nowrap;background:#f3f4f6;border-radius:999px;padding:8px 11px;font-size:13px}
+/* 候補名單自動換行，無須左右滑動；可讀性優先，長名字允許換行。 */
+.queueList{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,92px),1fr));
+  gap:7px;
+  width:100%;
+  min-width:0;
+  overflow:visible;
+}
+.queueChip{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  min-height:57px;
+  padding:7px 4px;
+  border-radius:11px;
+  border:1px solid #e2e8f0;
+  background:#f8fafc;
+  text-align:center;
+  line-height:1.25;
+}
+.queueName{
+  display:block;
+  width:100%;
+  font-size:clamp(12px,3.5vw,15px);
+  font-weight:750;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.queueMeta{
+  display:block;
+  margin-top:4px;
+  font-size:11px;
+  line-height:1.3;
+  color:#64748b;
+  overflow-wrap:anywhere;
+}
+/* 無候補時保持正常提示寬度。 */
+.queueList>.muted{grid-column:1/-1;font-size:13px}
+@media(max-width:350px){
+  .queueList{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .queueChip{min-height:53px}
+}
 .statsList{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
 .statChip{background:#f8fafc;border-radius:11px;padding:9px;font-size:13px}
 .statChip strong{display:block;font-size:16px;margin-top:2px}
@@ -382,3 +425,136 @@ button{
   background:#fee2e2;
   color:#991b1b;
 }
+
+
+/* v10: Multi-court and fixed-pair rotation */
+.countSelect{min-height:44px;border:1px solid #d1d5db;border-radius:11px;padding:7px 12px;background:#fff;color:var(--text);font-size:16px;font-weight:700}
+.hintLine{display:block;margin-top:5px;line-height:1.5}
+.pairForm{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:6px;align-items:center;margin-top:9px}
+.pairForm .lineupSelect{margin:0;min-width:0}
+.pairForm button{min-height:44px}
+.pairList{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.pairChip{display:inline-flex;align-items:center;gap:8px;padding:5px 7px 5px 11px;background:#eaf0ff;color:#1e3a8a;border-radius:999px;font-size:13px;font-weight:650}
+.pairChip button{min-height:30px;padding:3px 8px;border-radius:999px;background:#fff;color:#991b1b}
+.courtsGrid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+.courtUnit{padding:13px;border:1px solid #dbe2ea;border-radius:16px;background:#fcfdff}
+.courtUnitHeader{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.courtUnit h3{font-size:16px;margin:0}
+.courtUnit .court{margin-top:9px}
+.courtUnit .courtPlayer{font-size:14px}
+.courtUnit .courtPersonName{overflow-wrap:anywhere}
+.courtEmpty{background:#f8fafc;border:1px dashed #d1d5db;border-radius:13px;text-align:center;color:#6b7280;padding:18px 7px;margin-top:10px;font-size:14px}
+.courtActions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.courtActions button{flex:1;min-width:128px;font-size:13px;min-height:42px;padding:8px}
+.courtActions button:disabled{opacity:.48}
+.courtNext{padding:10px;background:#f1f5f9;border-radius:11px;margin-top:10px;font-size:12px;line-height:1.6}
+.courtNext strong{display:block}
+.courtNext span{overflow-wrap:anywhere}
+.courtEdit{padding:12px;background:#f8fafc;border-radius:13px;margin-top:10px}
+.courtEdit .teamSelectGrid{margin-top:4px}
+.courtEdit .lineupSelect{min-width:0}
+.courtStatus{font-size:12px;border-radius:999px;padding:5px 9px;background:#e0e7ff;color:#3730a3;white-space:nowrap}
+.courtStatus.idle{background:#f3f4f6;color:#4b5563}
+.courtMessage{font-size:12px;color:#b91c1c;line-height:1.4;margin-top:6px}
+button:focus-visible,select:focus-visible{outline:3px solid rgba(37,99,235,.3);outline-offset:1px}
+@media(min-width:660px){.app{width:min(100%,900px)}.courtsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:410px){.pairForm{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}.pairForm button{grid-column:1/-1}.courtActions button{min-width:110px}.courtUnit{padding:10px}}
+
+/* v11 group-specific rotation */
+.assignmentList{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.assignmentRow{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border:1px solid #e5e7eb;border-radius:11px;padding:7px 9px;font-size:13px;font-weight:650;min-width:0}
+.assignmentRow>span{min-width:0;overflow-wrap:anywhere}
+.assignmentSelect{width:110px;min-width:96px;margin:0;font-size:14px}
+#rotationModeSelect{max-width:190px;font-size:14px}
+@media(max-width:520px){.assignmentList{grid-template-columns:1fr}.assignmentSelect{width:140px}}
+
+/* v12: large ready-for-next-round panels, readable on phones */
+.courtNext{margin-top:14px;padding:15px;border:2px solid #2563eb;border-radius:16px;background:#f2f7ff;font-size:15px;line-height:1.45;box-shadow:0 3px 10px rgba(37,99,235,.09)}
+.nextHeading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.nextHeading strong{font-size:20px;letter-spacing:-.2px;color:#1d4ed8}
+.nextStatus{font-size:13px;font-weight:800;color:#1e40af;background:#dbeafe;border-radius:999px;padding:6px 11px}
+.nextTeams{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nextTeam{border:1px solid #d1d5db;border-radius:13px;padding:10px;min-width:0}
+.nextTeamLabel{font-size:16px;font-weight:850;text-align:center;margin-bottom:10px}
+.nextReadyPlayer{padding:10px 6px;background:#fff;border-radius:11px;margin-top:7px;text-align:center;display:flex;flex-direction:column;gap:7px;align-items:center;min-width:0}
+.nextReadyPlayer b{font-size:20px;font-weight:850;overflow-wrap:anywhere;line-height:1.2}
+.nextReadyPlayer small{display:inline-block;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:850;line-height:1.2}
+.nextFreshTag{background:#dcfce7;color:#166534}
+.nextStayTag{background:#e2e8f0;color:#475569}
+.nextRest{padding:12px;background:#fff;border-radius:11px;margin-top:12px;font-size:14px;font-weight:650;line-height:1.6;color:#374151;overflow-wrap:anywhere}
+.nextReroll{width:100%;margin-top:11px;min-height:42px;border:1px solid #bfdbfe;font-size:14px}
+@media(max-width:370px){.courtNext{padding:11px}.nextTeams{gap:7px}.nextTeam{padding:7px}.nextReadyPlayer b{font-size:18px}.nextHeading strong{font-size:18px}}
+
+
+/* v15: return to large cards instead of a one-column list (shared mode).
+   Four individuals, no A/B split. Names adapt to their actual card width in app.js. */
+.nextReadyList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.nextReadyList .nextReadyPlayer{
+  margin-top:0;
+  min-width:0;
+  min-height:105px;
+  padding:12px 8px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  gap:9px;
+  border:1px solid #cfddf3;
+  border-radius:13px;
+  background:#fff;
+}
+.courtNext .nextReadyPlayer b{
+  display:block;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  font-size:clamp(15px,4.2vw,22px);
+  font-weight:850;
+  line-height:1.2;
+  text-align:center;
+}
+.courtNext .nextReadyPlayer small{
+  font-size:clamp(11px,2.5vw,12px);
+  white-space:nowrap;
+  max-width:100%;
+  text-align:center;
+}
+.nextReadyList .nextReadyPlayer:has(.nextFreshTag){border-color:#bce4ca;background:#fbfffc}
+@media(max-width:370px){
+  .nextReadyList{gap:7px}
+  .nextReadyList .nextReadyPlayer{min-height:98px;padding:10px 5px}
+  .nextHeading strong{font-size:clamp(16px,4.8vw,20px)}
+}
+@media(min-width:660px){
+  .courtsGrid[data-count="1"]{grid-template-columns:minmax(0,1fr);width:min(100%,710px);margin-left:auto;margin-right:auto}
+  .courtsGrid[data-count="3"] > .courtUnit:last-child{
+    grid-column:1/-1;width:calc(50% - 6px);justify-self:center;
+  }
+}
+
+
+/* v17 — Shared pool: a SINGLE four-person preview, placed below all courts. */
+#sharedNextArea[hidden]{display:none!important}
+.sharedNextArea{margin-top:0}
+.sharedNextHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.sharedNextHeader h2{margin:0}
+.sharedNextArea .courtNext{margin-top:11px}
+/* Historical results remain saved but don't extend the page. Expand on demand;
+   even 300 rounds are constrained to a scrollable region. */
+.historyDetails summary{display:flex;gap:6px;align-items:center;flex-wrap:wrap;cursor:pointer;list-style:revert}
+.historyDetails summary::marker{color:#64748b}
+.historyDetails .historyCount{color:#64748b;font-size:13px;font-weight:600}
+.historyExpandHint{font-size:12px;font-weight:500;color:#64748b;margin-left:auto}
+.historyDetails .historyList{max-height:340px;overflow-y:auto;overscroll-behavior:contain;margin-top:12px;padding-right:8px}
+@media(max-width:390px){.sharedNextHeader{align-items:flex-start}}
+
+
+/* v18: no per-court preview picker in shared mode; only one four-person card. */
+.sharedNextHeader .badge{font-size:13px}
+.sharedNextArea .courtNext{margin-top:10px}
+
+/* Final polish: optional demo controls and nonessential text remain unobtrusive. */
+.demoTools{margin-top:10px;border-top:1px solid var(--line);padding-top:5px}
+.demoTools summary{font-size:12px;color:#94a3b8;font-weight:600;min-height:30px}
+.inlineFeedback:empty{display:none}

@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#f5f7fb">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20">
   <title>羽球團工具</title>
 </head>
 <body>
@@ -39,14 +39,14 @@
         <div class="field">
           <div class="fieldText">
             <label for="walkInCount">臨打幾人</label>
-            <small id="rosterCountHint">臨打每人 $250；可直接輸入，或使用輪轉名單人數</small>
+            <small id="rosterCountHint">可手動輸入或帶入名單</small>
           </div>
           <input id="walkInCount" type="number" inputmode="numeric" min="0" placeholder="0">
         </div>
 
         <div class="syncRosterBox">
           <button id="syncRosterCountBtn" class="secondary full" type="button">使用輪轉名單人數</button>
-          <small id="syncRosterCountStatus">目前採手動輸入；需要時再按上方按鈕</small>
+          <small id="syncRosterCountStatus" class="inlineFeedback"></small>
         </div>
 
         <div class="field">
@@ -161,7 +161,7 @@
           <div class="memoryHeader">
             <div>
               <strong>常用球友</strong>
-              <small>點名字加入本場；右側 × 可單獨刪除</small>
+              <small>點選即可加入</small>
             </div>
             <button id="rememberRosterBtn" class="ghost memoryAction" type="button">記住目前名單</button>
           </div>
@@ -175,36 +175,48 @@
 
         <div id="rosterList" class="rosterList"></div>
 
-        <div class="buttonRow">
-          <button id="demo6Btn" class="ghost" type="button">測試 6 人</button>
-          <button id="demo8Btn" class="ghost" type="button">測試 8 人</button>
-          <button id="demo10Btn" class="ghost" type="button">測試 10 人</button>
-        </div>
+        <details class="demoTools">
+          <summary>測試名單</summary>
+          <div class="buttonRow">
+            <button id="demo6Btn" class="ghost" type="button">6 人</button>
+            <button id="demo8Btn" class="ghost" type="button">8 人</button>
+            <button id="demo10Btn" class="ghost" type="button">10 人</button>
+          </div>
+        </details>
 
 
-        <div class="lineupSetup" id="firstLineupSetup">
+        <div class="lineupSetup">
           <div class="sectionHeader">
-            <div>
-              <strong>第一場手動上場</strong>
-              <small>先選好 A隊、B隊各 2 人，再開始排場</small>
-            </div>
-            <span class="badge">手動</span>
+            <div><strong>🏸 場地數量</strong><small>最多 3 場</small></div>
+            <select id="courtCountSelect" class="countSelect" aria-label="使用場地數量"></select>
           </div>
-
-          <div class="teamSelectGrid">
-            <div class="teamSelectCard teamABox">
-              <div class="teamSelectTitle">A隊</div>
-              <label>A1<select id="firstA1" class="lineupSelect"></select></label>
-              <label>A2<select id="firstA2" class="lineupSelect"></select></label>
-            </div>
-            <div class="teamSelectCard teamBBox">
-              <div class="teamSelectTitle">B隊</div>
-              <label>B1<select id="firstB1" class="lineupSelect"></select></label>
-              <label>B2<select id="firstB2" class="lineupSelect"></select></label>
-            </div>
+        </div>
+        <div class="lineupSetup">
+          <div class="sectionHeader">
+            <div><strong>🎯 排場方式</strong><small>選擇排場模式</small></div>
+            <select id="rotationModeSelect" class="countSelect" aria-label="排場模式">
+              <option value="shared">全部場地共用名單</option>
+              <option value="split">各場地分組獨立排場</option>
+            </select>
           </div>
-          <button id="randomFirstLineupBtn" class="secondary full" type="button">🎲 隨機分配第一場</button>
-          <small class="lineupHint">隨機後仍可手動調整 A1、A2、B1、B2</small>
+          <div id="splitAssignments" hidden>
+            <p class="hintLine">選擇各球友的場地；固定搭檔會分在一起。</p>
+            <button id="autoSplitBtn" class="secondary full" type="button">⚖️ 自動平均分組（可再手動調整）</button>
+            <div id="assignmentSummary" class="hintLine"></div>
+            <div id="courtAssignments" class="assignmentList"></div>
+          </div>
+        </div>
+        <div class="lineupSetup">
+          <strong>🔗 固定搭檔</strong>
+          <small class="hintLine">兩人同隊、同進退</small>
+          <div class="pairForm">
+            <select id="pairPersonA" class="lineupSelect" aria-label="搭檔第一人"></select>
+            <span>＋</span>
+            <select id="pairPersonB" class="lineupSelect" aria-label="搭檔第二人"></select>
+            <button id="addPairBtn" class="secondary" type="button">綁定</button>
+          </div>
+          <div id="pairList" class="pairList"></div>
+          <div id="pairMessage" class="message" aria-live="polite"></div>
         </div>
 
         <div id="rosterMessage" class="message" aria-live="polite"></div>
@@ -215,96 +227,44 @@
       <div id="gameArea" hidden>
         <div class="card">
           <div class="sectionHeader">
-            <h2>目前場上</h2>
-            <div class="courtHeaderActions">
-              <button id="editCourtBtn" class="ghost miniBtn" type="button">✏️ 修改場上</button>
-              <span id="roundBadge" class="badge accent">第 1 場</span>
-            </div>
+            <div><h2>各場地排場</h2><small></small></div>
+            <span class="badge accent" id="activeCourtInfo">0 場進行中</span>
           </div>
-
-          <div id="courtEditPanel" class="courtEditPanel" hidden>
-            <strong>修改目前場上</strong>
-            <div class="teamSelectGrid">
-              <div class="teamSelectCard teamABox">
-                <div class="teamSelectTitle">A隊</div>
-                <label>A1<select id="editA1" class="lineupSelect"></select></label>
-                <label>A2<select id="editA2" class="lineupSelect"></select></label>
-              </div>
-              <div class="teamSelectCard teamBBox">
-                <div class="teamSelectTitle">B隊</div>
-                <label>B1<select id="editB1" class="lineupSelect"></select></label>
-                <label>B2<select id="editB2" class="lineupSelect"></select></label>
-              </div>
-            </div>
-            <div class="buttonRow">
-              <button id="saveCourtEditBtn" class="secondary" type="button">儲存</button>
-              <button id="cancelCourtEditBtn" class="ghost" type="button">取消</button>
-            </div>
-            <div id="courtEditMessage" class="message"></div>
-          </div>
-
-          <div class="teamLegend" aria-hidden="true">
-            <span class="teamALabel">A隊</span>
-            <span class="teamBLabel">B隊</span>
-          </div>
-
-          <div class="court" aria-label="目前場上四位球友，左側 A隊，右側 B隊">
-            <div class="courtLine centerV"></div>
-            <div class="courtLine centerH"></div>
-            <div id="court0" class="courtPlayer cp0">—</div>
-            <div id="court1" class="courtPlayer cp1">—</div>
-            <div id="court2" class="courtPlayer cp2">—</div>
-            <div id="court3" class="courtPlayer cp3">—</div>
-          </div>
+          <div id="courtsGrid" class="courtsGrid"></div>
         </div>
-
-        <div class="card">
-          <div class="sectionHeader">
-            <div>
-              <h2>下一場準備</h2>
-              <small id="nextRuleText"></small>
-            </div>
+        <!-- Shared mode: exactly ONE visible next-round recommendation.
+             Split mode: each court renders its own recommendation in courtsGrid. -->
+        <section id="sharedNextArea" class="card sharedNextArea" hidden aria-label="共用名單下一局預備">
+          <div class="sharedNextHeader">
+            <h2>下一局預備</h2>
+            <span id="sharedPreviewCourtLabel" class="badge accent"></span>
           </div>
-          <div id="nextGrid" class="nextGrid"></div>
-        </div>
-
+          <div id="sharedPreviewContent"></div>
+        </section>
         <div class="card">
-          <h2>候補順序</h2>
+          <h2>目前候補</h2>
           <div id="queueList" class="queueList"></div>
         </div>
-
-        <button id="finishBtn" class="primary full bigButton" type="button">✅ 本局結束 → 下一場</button>
-
         <div class="card">
           <div class="sectionHeader">
-            <div>
-              <h2>上場局數</h2>
-              <small id="fairnessGap">目前局數差：0</small>
-            </div>
+            <div><h2>上場局數</h2><small id="fairnessGap">目前局數差：0</small></div>
             <button id="endSessionBtn" class="dangerSmall" type="button">結束排場／編輯名單</button>
           </div>
           <div id="gamesStats" class="statsList"></div>
         </div>
-
-        <div class="card">
-          <h2>輪轉紀錄</h2>
+        <details id="historyDetails" class="card historyDetails">
+          <summary>📋 輪轉紀錄 <span id="historyCount" class="historyCount">（0 局）</span></summary>
           <div id="historyList" class="historyList"><span class="muted">尚未完成任何一局</span></div>
-        </div>
+        </details>
       </div>
-
-      <div class="card noteCard">
-        <strong>目前輪轉規則</strong>
-        <p>每一局採「最少局數優先」：目前累積上場次數最少的人，優先加入下一局；如果局數相同，再隨機抽。6 人以下：目標下 2 人；7–8 人：下 3 人；9 人以上：下 4 人。</p>
-        <p>候補上場時先選目前局數最少的人；需要留場時，也優先從目前場上局數較少的人中選。只有局數相同時才隨機。如果候補人數不足（例如只有 5 人），會自動少下一人，確保場上一直維持 4 人。</p>
-      </div>
-    </section>
+</section>
 
     <section id="paymentPage" class="page">
       <div class="card">
         <div class="sectionHeader">
           <div>
             <h2>今日收費名單</h2>
-            <small>新增姓名後，會同時加入臨打名單</small>
+            <small></small>
           </div>
           <span class="badge accent">$250 / 人</span>
         </div>
@@ -338,14 +298,14 @@
         </div>
         <div id="paymentList" class="paymentList"></div>
         <button id="clearPaymentsBtn" class="dangerSmall full" type="button">清空今日收費名單</button>
-        <div class="paymentNote">刪除收費紀錄不會自動刪除臨打名單，避免誤刪正在排場的人。</div>
+        
       </div>
     </section>
 
   </main>
 </div>
 
-<script src="app.js"></script>
+<script src="app.js?v=20"></script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })

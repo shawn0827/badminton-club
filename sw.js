@@ -1,12 +1,10 @@
-const CACHE = "badminton-tools-v12-runtime";
+const CACHE = "badminton-tools-v23-queue-grid";
 const CORE = [
   "./",
   "./index.html",
   "./app.js",
   "./style.css",
-  "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./manifest.webmanifest"
 ];
 
 self.addEventListener("install", event => {

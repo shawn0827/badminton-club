@@ -9,10 +9,14 @@
     maximumFractionDigits: 0
   }).format(Math.round(Number(value) || 0));
 
+  const MAX_PLAYERS = 60;
+  const MAX_COURTS = 3;
+  const LEGACY_ROTATION_KEY = "badminton_tools_rotation_v9_team_colors_random_first";
+
   const KEYS = {
     settings: "badminton_tools_settings_v12",
     roster: "badminton_tools_roster_v3",
-    rotation: "badminton_tools_rotation_v9_team_colors_random_first",
+    rotation: "badminton_tools_rotation_v10_multi_court_pairs",
     calc: "badminton_tools_calc_v12",
     memory: "badminton_tools_people_memory_v1",
     payment: "badminton_tools_payment_v1",
@@ -41,15 +45,14 @@
   let peopleMemory = loadJSON(KEYS.memory, []);
   let paymentList = loadJSON(KEYS.payment, []);
 
-  let rotation = loadJSON(KEYS.rotation, {
-    active: false,
-    court: [],
-    queue: [],
-    games: {},
-    round: 1,
-    history: [],
-    nextPlan: null
-  });
+  const defaultRotation = {
+    active: false, courtCount: 2, courts: [], pairs: [], games: {}, history: [],
+    mode: "shared", assignments: {}, sharedPreviewCourtId: 1
+  };
+  // Read the old session once if the upgraded key has not been saved yet.
+  let rotation = localStorage.getItem(KEYS.rotation)
+    ? loadJSON(KEYS.rotation, defaultRotation)
+    : loadJSON(LEGACY_ROTATION_KEY, defaultRotation);
 
   function loadJSON(key, fallback) {
     try {
@@ -73,44 +76,97 @@
     localStorage.setItem(KEYS.payment, JSON.stringify(paymentList));
   }
 
+  function makeCourt(id) {
+    return { id, court: [], round: 1, nextPlan: null };
+  }
+
   function normalizeLoadedState() {
-    roster = Array.isArray(roster) ? roster.filter(x => typeof x === "string" && x.trim()).slice(0, 24) : [];
+    roster = Array.isArray(roster)
+      ? [...new Set(roster.filter(x => typeof x === "string" && x.trim()))].slice(0, MAX_PLAYERS)
+      : [];
     peopleMemory = Array.isArray(peopleMemory)
       ? [...new Set(peopleMemory.filter(x => typeof x === "string" && x.trim()))].slice(0, 60)
       : [];
     paymentList = Array.isArray(paymentList)
-      ? paymentList
-          .filter(item => item && typeof item.name === "string" && item.name.trim())
-          .map((item, index) => ({
-            id: String(item.id || `p_${index}_${Date.now()}`),
-            name: item.name.trim().slice(0,20),
-            amount: Math.max(0, Number(item.amount) || 250),
-            paid: Boolean(item.paid)
-          }))
-          .slice(0,60)
+      ? paymentList.filter(item => item && typeof item.name === "string" && item.name.trim())
+        .map((item, index) => ({
+          id: String(item.id || `p_${index}_${Date.now()}`),
+          name: item.name.trim().slice(0,20),
+          amount: Math.max(0, Number(item.amount) || 250),
+          paid: Boolean(item.paid)
+        })).slice(0, 60)
       : [];
+
+    if (!rotation || typeof rotation !== "object") rotation = structuredCloneSafe(defaultRotation);
+    // Backwards-compatible migration of the original single-court rotation.
+    if (!Array.isArray(rotation.courts) && Array.isArray(rotation.court)) {
+      const old = rotation;
+      rotation = {
+        ...structuredCloneSafe(defaultRotation),
+        active: Boolean(old.active),
+        courtCount: 2,
+        courts: [
+          { id: 1, court: Array.isArray(old.court) ? old.court : [],
+            round: Math.max(1, Number(old.round) || 1), nextPlan: null },
+          makeCourt(2)
+        ],
+        games: old.games && typeof old.games === "object" ? old.games : {},
+        history: Array.isArray(old.history)
+          ? old.history.map(h => ({ ...h, courtId: 1 })) : [],
+        pairs: []
+      };
+    }
+    rotation.mode = rotation.mode === "split" ? "split" : "shared";
+    rotation.assignments = rotation.assignments && typeof rotation.assignments === "object" ? rotation.assignments : {};
+    rotation.courtCount = Math.max(1, Math.min(MAX_COURTS,
+      Math.floor(Number(rotation.courtCount) || 2)));
+    // Only one preview is displayed in shared mode. Remember which physical
+    // court the user is viewing, while retaining all existing court plans.
+    rotation.sharedPreviewCourtId = Math.max(1, Math.min(rotation.courtCount,
+      Math.floor(Number(rotation.sharedPreviewCourtId) || 1)));
     const rosterSet = new Set(roster);
-
-    if (!rotation || typeof rotation !== "object") {
-      rotation = { active:false, court:[], queue:[], games:{}, round:1, history:[], nextPlan:null };
-    }
-
-    rotation.court = Array.isArray(rotation.court) ? rotation.court.filter(x => rosterSet.has(x)) : [];
-    rotation.queue = Array.isArray(rotation.queue) ? rotation.queue.filter(x => rosterSet.has(x)) : [];
-
-    const validActive = rotation.active &&
-      rotation.court.length === 4 &&
-      new Set([...rotation.court, ...rotation.queue]).size === roster.length;
-
-    if (!validActive) {
-      rotation.active = false;
-      rotation.court = [];
-      rotation.queue = [];
-      rotation.games = {};
-      rotation.round = 1;
-      rotation.history = [];
-      rotation.nextPlan = null;
-    }
+    rotation.assignments = Object.fromEntries(roster.filter(name => Number.isInteger(Number(rotation.assignments[name])) && Number(rotation.assignments[name]) >= 1 && Number(rotation.assignments[name]) <= rotation.courtCount).map(name => [name, Number(rotation.assignments[name])]));
+    const usedPairs = new Set();
+    rotation.pairs = (Array.isArray(rotation.pairs) ? rotation.pairs : [])
+      .filter(pair => {
+        if (!Array.isArray(pair) || pair.length !== 2 || pair[0] === pair[1] ||
+            !rosterSet.has(pair[0]) || !rosterSet.has(pair[1]) ||
+            usedPairs.has(pair[0]) || usedPairs.has(pair[1])) return false;
+        usedPairs.add(pair[0]); usedPairs.add(pair[1]);
+        return true;
+      });
+    const storedCourts = Array.isArray(rotation.courts) ? rotation.courts : [];
+    const taken = new Set();
+    rotation.courts = Array.from({length:rotation.courtCount}, (_,i) => {
+      const id = i + 1;
+      const existing = storedCourts[i];
+      const slots = existing && Array.isArray(existing.court) ? existing.court : [];
+      // Only reserve players after all validations pass. An invalid earlier
+      // court must not accidentally prevent a later valid court from loading.
+      const valid = slots.length === 4 && new Set(slots).size === 4 &&
+        slots.every(name => rosterSet.has(name) && !taken.has(name)) &&
+        (rotation.mode !== "split" || slots.every(name => rotation.assignments[name] === id)) &&
+        !rotation.pairs.some(([a,b]) => {
+          const ia = slots.indexOf(a), ib = slots.indexOf(b);
+          return (ia === -1) !== (ib === -1) || (ia >= 0 && ia % 2 !== ib % 2);
+        });
+      if (valid) slots.forEach(name => taken.add(name));
+      return { id, court:valid ? [...slots] : [],
+        round:Math.max(1, Math.floor(Number(existing?.round) || 1)),
+        nextPlan:Array.isArray(existing?.nextPlan) ? [...existing.nextPlan] : null };
+    });
+    rotation.games = rotation.games && typeof rotation.games === "object" ? rotation.games : {};
+    rotation.games = Object.fromEntries(roster.map(name =>
+      [name, Math.max(0, Math.floor(Number(rotation.games[name]) || 0))]));
+    rotation.history = Array.isArray(rotation.history) ? rotation.history.slice(0, 300) : [];
+    rotation.active = Boolean(rotation.active) && roster.length >= 4;
+    if (!rotation.active) rotation.courts.forEach(c => {c.court=[]; c.nextPlan=null; c.round=1;});
+    else rotation.courts.forEach(c => {
+      // A stored recommendation belongs to the current ongoing match only.
+      if (c.court.length !== 4 || !c.nextPlan || !validateLineup(c.nextPlan, c.id).ok) {
+        c.nextPlan = null;
+      }
+    });
   }
 
   normalizeLoadedState();
@@ -128,6 +184,7 @@
     tabs.forEach(btn => btn.classList.toggle("active", btn.dataset.tab === target));
     Object.entries(pages).forEach(([key, page]) => page.classList.toggle("active", key === target));
     localStorage.setItem(KEYS.tab, target);
+    requestAnimationFrame(fitReadyNames);
   }
 
   tabs.forEach(btn => btn.addEventListener("click", () => openTab(btn.dataset.tab)));
@@ -156,7 +213,7 @@
   $("familyShortCount").value = calcState.familyShortCount ?? "";
   $("ballprice").value = calcState.ballprice ?? settings.ballPrice;
   $("funOutsideCount").value = calcState.funOutsideCount ?? "";
-  $("rosterCountHint").textContent = "臨打每人 $250；目前採手動輸入";
+  $("rosterCountHint").textContent = `目前臨打單價 ${money(settings.walkInPrice)}`;
 
   function useRosterCountOnce() {
     $("walkInCount").value = roster.length ? String(roster.length) : "";
@@ -241,6 +298,7 @@
         }
       }
 
+      if (key === "walkInPrice") $("rosterCountHint").textContent = `目前臨打單價 ${money(next)}`;
       saveAll();
       calc();
     };
@@ -257,6 +315,7 @@
     $("shortPrice").value = settings.shortPrice;
     $("funPrice").value = settings.funPrice;
     $("defaultBallPrice").value = settings.ballPrice;
+    $("rosterCountHint").textContent = `目前臨打單價 ${money(settings.walkInPrice)}`;
     $("ballprice").value = settings.ballPrice;
     calcState.ballprice = settings.ballPrice;
     saveAll();
@@ -274,7 +333,7 @@
     $("familyShortCount").value = "";
     $("ballprice").value = settings.ballPrice;
     $("funOutsideCount").value = "";
-    $("syncRosterCountStatus").textContent = "目前採手動輸入；需要時再按上方按鈕";
+    $("syncRosterCountStatus").textContent = "";
     calc();
   });
 
@@ -291,12 +350,11 @@
 
   function updateRosterDerivedState() {
     $("rosterSummary").textContent = `目前 ${roster.length} 人`;
-    $("syncRosterCountStatus").textContent = roster.length
-      ? `輪轉名單目前 ${roster.length} 人；需要時按「使用輪轉名單人數」`
-      : "輪轉名單目前沒有人";
+    $("syncRosterCountStatus").textContent = "";
     saveAll();
     renderPeopleMemory();
-    refreshFirstLineupSelects();
+    refreshPairSelectors();
+    renderAssignments();
   }
 
   function renamePlayer(oldName, newName) {
@@ -309,32 +367,21 @@
 
     roster = roster.map(name => name === oldName ? newName : name);
 
-    if (rotation.active) {
-      rotation.court = rotation.court.map(name => name === oldName ? newName : name);
-      rotation.queue = rotation.queue.map(name => name === oldName ? newName : name);
-
-      if (Object.prototype.hasOwnProperty.call(rotation.games, oldName)) {
-        rotation.games[newName] = rotation.games[oldName];
-        delete rotation.games[oldName];
-      }
-      if (rotation.nextPlan) {
-        rotation.nextPlan = {
-          ...rotation.nextPlan,
-          next: rotation.nextPlan.next.map(x => x === oldName ? newName : x),
-          stayers: rotation.nextPlan.stayers.map(x => x === oldName ? newName : x),
-          incoming: rotation.nextPlan.incoming.map(x => x === oldName ? newName : x),
-          outgoing: rotation.nextPlan.outgoing.map(x => x === oldName ? newName : x)
-        };
-      }
-
-      rotation.history = rotation.history.map(entry => ({
-        ...entry,
-        court: entry.court.map(x => x === oldName ? newName : x),
-        stayers: entry.stayers.map(x => x === oldName ? newName : x),
-        incoming: entry.incoming.map(x => x === oldName ? newName : x),
-        outgoing: entry.outgoing.map(x => x === oldName ? newName : x)
-      }));
+    if (rotation.assignments[oldName]) { rotation.assignments[newName] = rotation.assignments[oldName]; delete rotation.assignments[oldName]; }
+    rotation.pairs = rotation.pairs.map(pair => pair.map(name => name === oldName ? newName : name));
+    rotation.courts.forEach(c => {
+      c.court = c.court.map(name => name === oldName ? newName : name);
+      c.nextPlan = null;
+    });
+    if (Object.prototype.hasOwnProperty.call(rotation.games, oldName)) {
+      rotation.games[newName] = rotation.games[oldName];
+      delete rotation.games[oldName];
     }
+    rotation.history = rotation.history.map(entry => ({
+      ...entry,
+      court: Array.isArray(entry.court) ? entry.court.map(n => n === oldName ? newName : n) : [],
+      next: Array.isArray(entry.next) ? entry.next.map(n => n === oldName ? newName : n) : []
+    }));
 
     if (peopleMemory.includes(oldName)) {
       peopleMemory = peopleMemory.map(name => name === oldName ? newName : name);
@@ -382,8 +429,8 @@
           setRosterMessage("排場中不能新增人員，請先結束排場");
           return;
         }
-        if (roster.length >= 24) {
-          setRosterMessage("本場名單最多 24 人");
+        if (roster.length >= MAX_PLAYERS) {
+          setRosterMessage(`本場名單最多 ${MAX_PLAYERS} 人`);
           return;
         }
         roster.push(name);
@@ -428,7 +475,7 @@
       return;
     }
     const available = peopleMemory.filter(name => !roster.includes(name));
-    const slots = Math.max(0, 24 - roster.length);
+    const slots = Math.max(0, MAX_PLAYERS - roster.length);
     const toAdd = available.slice(0, slots);
     roster.push(...toAdd);
     updateRosterDerivedState();
@@ -444,7 +491,10 @@
       setRosterMessage("請先結束排場再清空本場名單");
       return;
     }
+    if (roster.length && !window.confirm("確定清空本場球友名單？固定搭檔與分組也會清空，常用球友仍會保留。")) return;
     roster = [];
+    rotation.assignments = {};
+    rotation.pairs = [];
     updateRosterDerivedState();
     renderRoster();
     setRosterMessage("本場名單已清空；常用球友仍保留", false);
@@ -452,6 +502,7 @@
 
   function clearPeopleMemory() {
     if (!peopleMemory.length) return;
+    if (!window.confirm("確定清除所有常用球友？目前臨打名單不受影響。")) return;
     peopleMemory = [];
     saveAll();
     renderPeopleMemory();
@@ -516,6 +567,8 @@
       del.disabled = rotation.active;
       del.addEventListener("click", () => {
         roster.splice(index, 1);
+        delete rotation.assignments[name];
+        rotation.pairs = rotation.pairs.filter(pair => !pair.includes(name));
         setRosterMessage("");
         updateRosterDerivedState();
         renderRoster();
@@ -532,11 +585,7 @@
     $("demo8Btn").disabled = rotation.active;
     $("demo10Btn").disabled = rotation.active;
     $("startBtn").disabled = rotation.active;
-    if ($("randomFirstLineupBtn")) $("randomFirstLineupBtn").disabled = rotation.active;
-    firstLineupIds.forEach(id => {
-      if ($(id)) $(id).disabled = rotation.active;
-    });
-    refreshFirstLineupSelects();
+    refreshPairSelectors();
 
     updateRuleBadge();
   }
@@ -563,8 +612,8 @@
       setRosterMessage("這個名字已經存在");
       return;
     }
-    if (roster.length >= 24) {
-      setRosterMessage("最多支援 24 人");
+    if (roster.length >= MAX_PLAYERS) {
+      setRosterMessage(`最多支援 ${MAX_PLAYERS} 人`);
       return;
     }
 
@@ -578,7 +627,10 @@
 
   function makeDemo(count) {
     if (rotation.active) return;
+    if (roster.length && !window.confirm("使用測試名單將取代目前球友及固定搭檔設定，確定繼續？")) return;
     roster = Array.from({length:count}, (_,i) => `球友${i+1}`);
+    rotation.pairs = [];
+    rotation.assignments = {};
     updateRosterDerivedState();
     renderRoster();
     setRosterMessage(`已建立 ${count} 人測試名單`, false);
@@ -593,108 +645,6 @@
   $("demo8Btn").addEventListener("click", () => makeDemo(8));
   $("demo10Btn").addEventListener("click", () => makeDemo(10));
 
-
-  // ---------- Manual lineup ----------
-  const firstLineupIds = ["firstA1","firstA2","firstB1","firstB2"];
-  const editLineupIds = ["editA1","editA2","editB1","editB2"];
-
-  function populatePlayerSelect(selectId, selected = "") {
-    const select = $(selectId);
-    if (!select) return;
-    const oldValue = selected || select.value || "";
-    select.innerHTML = "";
-
-    const blank = document.createElement("option");
-    blank.value = "";
-    blank.textContent = "請選擇";
-    select.appendChild(blank);
-
-    roster.forEach(name => {
-      const option = document.createElement("option");
-      option.value = name;
-      option.textContent = name;
-      select.appendChild(option);
-    });
-
-    if (roster.includes(oldValue)) select.value = oldValue;
-  }
-
-  function refreshFirstLineupSelects() {
-    firstLineupIds.forEach(id => populatePlayerSelect(id));
-  }
-
-  function readLineup(ids) {
-    const values = ids.map(id => $(id)?.value || "");
-    return [values[0], values[2], values[1], values[3]]; // A1,B1,A2,B2
-  }
-
-  function validateLineup(court) {
-    if (court.some(name => !name)) return {ok:false, message:"請把 A隊、B隊共 4 個位置都選好"};
-    if (new Set(court).size !== 4) return {ok:false, message:"同一個人不能同時出現在兩個位置"};
-    if (court.some(name => !roster.includes(name))) return {ok:false, message:"場上人員必須在臨打名單內"};
-    return {ok:true};
-  }
-
-  function randomizeFirstLineup() {
-    if (rotation.active) return;
-
-    if (roster.length < 4) {
-      setRosterMessage("至少需要 4 人才能隨機分配第一場");
-      return;
-    }
-
-    const picked = shuffle(roster).slice(0,4);
-
-    // select 顯示順序：A1、A2、B1、B2
-    $("firstA1").value = picked[0];
-    $("firstA2").value = picked[1];
-    $("firstB1").value = picked[2];
-    $("firstB2").value = picked[3];
-
-    setRosterMessage(
-      `已隨機第一場：A隊 ${picked[0]}、${picked[1]}｜B隊 ${picked[2]}、${picked[3]}`,
-      false
-    );
-  }
-
-  $("randomFirstLineupBtn").addEventListener("click", randomizeFirstLineup);
-
-  function openCourtEditor() {
-    if (!rotation.active || rotation.court.length !== 4) return;
-    populatePlayerSelect("editA1", rotation.court[0]);
-    populatePlayerSelect("editB1", rotation.court[1]);
-    populatePlayerSelect("editA2", rotation.court[2]);
-    populatePlayerSelect("editB2", rotation.court[3]);
-    $("courtEditMessage").textContent = "";
-    $("courtEditPanel").hidden = false;
-  }
-
-  function saveCourtEditor() {
-    const newCourt = readLineup(editLineupIds);
-    const validation = validateLineup(newCourt);
-    if (!validation.ok) {
-      $("courtEditMessage").textContent = validation.message;
-      return;
-    }
-
-    rotation.court = [...newCourt];
-    rotation.queue = shuffle(roster.filter(name => !newCourt.includes(name)));
-    rotation.nextPlan = null;
-    ensureNextPlan();
-    saveAll();
-
-    $("courtEditPanel").hidden = true;
-    $("courtEditMessage").textContent = "";
-    setRosterMessage("目前場上人員已更新", false);
-    renderRotation();
-  }
-
-  $("editCourtBtn").addEventListener("click", openCourtEditor);
-  $("saveCourtEditBtn").addEventListener("click", saveCourtEditor);
-  $("cancelCourtEditBtn").addEventListener("click", () => {
-    $("courtEditPanel").hidden = true;
-    $("courtEditMessage").textContent = "";
-  });
 
   // ---------- Payment list ----------
   function paymentId() {
@@ -712,13 +662,12 @@
     name = cleanName(name);
     if (!name) return {ok:false, message:"姓名不能空白"};
     if (roster.includes(name)) return {ok:true, added:false};
-    if (roster.length >= 24) return {ok:false, message:"臨打名單最多 24 人"};
+    if (roster.length >= MAX_PLAYERS) return {ok:false, message:`臨打名單最多 ${MAX_PLAYERS} 人`};
 
     roster.push(name);
     if (rotation.active) {
-      rotation.queue.push(name);
-      rotation.games[name] = rotation.games[name] || 0;
-      rotation.nextPlan = null;
+      rotation.games[name] = 0;
+      invalidatePlans();
     }
 
     updateRosterDerivedState();
@@ -729,7 +678,9 @@
 
   function addPaymentPerson(name, amount) {
     name = cleanName(name);
-    amount = Math.max(0, Number(amount) || Number(settings.walkInPrice) || 250);
+    amount = amount === "" || amount === null || amount === undefined
+      ? Math.max(0, Number(settings.walkInPrice) || 250)
+      : Math.max(0, Number(amount) || 0);
 
     if (!name) {
       setPaymentMessage("請輸入姓名", true);
@@ -737,6 +688,10 @@
     }
     if (paymentList.some(item => item.name === name)) {
       setPaymentMessage(`${name} 已經在收費名單`, true);
+      return false;
+    }
+    if (paymentList.length >= MAX_PLAYERS) {
+      setPaymentMessage(`收費名單最多 ${MAX_PLAYERS} 人`, true);
       return false;
     }
 
@@ -749,7 +704,9 @@
     paymentList.push({id:paymentId(), name, amount, paid:false});
     saveAll();
     renderPayments();
-    setPaymentMessage(`${name} 已加入收費名單，也已加入臨打名單`);
+    setPaymentMessage(rotation.active && rotation.mode === "split" && rosterResult.added
+      ? `${name} 已加入；請到排場頁指定所屬場地`
+      : `${name} 已加入收費與臨打名單`);
     return true;
   }
 
@@ -845,6 +802,7 @@
         item.amount = Math.max(0, Number(amountInput.value) || 0);
         saveAll();
         updatePaymentSummary();
+        status.textContent = item.paid ? `✅ 已收 ${money(item.amount)}` : `⏳ 尚未收 ${money(item.amount)}`;
       });
 
       const del = document.createElement("button");
@@ -881,7 +839,7 @@
   $("importRosterToPaymentsBtn").addEventListener("click", () => {
     let added = 0;
     roster.forEach(name => {
-      if (!paymentList.some(item => item.name === name)) {
+      if (paymentList.length < MAX_PLAYERS && !paymentList.some(item => item.name === name)) {
         paymentList.push({
           id:paymentId(),
           name,
@@ -893,7 +851,9 @@
     });
     saveAll();
     renderPayments();
-    setPaymentMessage(added ? `已從臨打名單補入 ${added} 人` : "臨打名單都已在收費名單");
+    const missing = roster.filter(name => !paymentList.some(item => item.name === name)).length;
+    setPaymentMessage(missing ? `已補入 ${added} 人；收費名單已達 ${MAX_PLAYERS} 人上限` :
+      (added ? `已補入 ${added} 人` : "臨打名單都已在收費名單"), missing > 0);
   });
 
   $("syncPaymentsToRosterBtn").addEventListener("click", () => {
@@ -928,29 +888,7 @@
     setPaymentMessage("今日收費名單已清空");
   });
 
-  // ---------- Rotation ----------
-  // ---------- Rotation ----------
-  function requestedOffCount(total) {
-    if (total >= 9) return 4;
-    if (total >= 7) return 3;
-    return 2; // 6 人以下目標下 2；候補不足時自動降低
-  }
-
-  function actualOffCount() {
-    if (!rotation.active || rotation.court.length !== 4) return 0;
-    return Math.min(requestedOffCount(roster.length), rotation.queue.length, 4);
-  }
-
-  function ruleText(total) {
-    if (total >= 9) return "9 人以上：最少局數優先，上 4 下 4";
-    if (total >= 7) return "7–8 人：最少局數優先，上 4 下 3";
-    return "6 人以下：最少局數優先，上 4 下 2";
-  }
-
-  function updateRuleBadge() {
-    $("ruleBadge").textContent = roster.length >= 4 ? ruleText(roster.length) : "至少需要 4 人";
-  }
-
+  // ---------- Independent multi-court rotation ----------
   function shuffle(array) {
     const result = [...array];
     for (let i = result.length - 1; i > 0; i--) {
@@ -958,301 +896,703 @@
       if (window.crypto && window.crypto.getRandomValues) {
         const random = new Uint32Array(1);
         window.crypto.getRandomValues(random);
-        j = random[0] % (i + 1);
-      } else {
-        j = Math.floor(Math.random() * (i + 1));
-      }
+        j = random[0] % (i+1);
+      } else j = Math.floor(Math.random() * (i+1));
       [result[i], result[j]] = [result[j], result[i]];
     }
     return result;
   }
 
-  function pickLowestFirst(array, count, scoreFn) {
-    if (count <= 0 || !array.length) return [];
+  function activeNames(exceptCourtId = null) {
+    return new Set(rotation.courts
+      .filter(c => c.id !== exceptCourtId)
+      .flatMap(c => c.court));
+  }
 
-    const groups = new Map();
-    array.forEach(name => {
-      const score = Number(scoreFn(name)) || 0;
-      if (!groups.has(score)) groups.set(score, []);
-      groups.get(score).push(name);
+  function partnerOf(name) {
+    const pair = rotation.pairs.find(p => p.includes(name));
+    return pair ? pair.find(p => p !== name) : null;
+  }
+
+  // A court's next-round preview is its own saved recommendation.
+  // Updating one court must NOT redraw another court's preview. This is
+  // particularly important in split mode, where player pools never overlap.
+  // In shared mode getPlan() can still invalidate a preview if another court
+  // actually takes a player shown in it (preventing duplicate bookings).
+  function invalidatePlans(changedCourtId = null) {
+    rotation.courts.forEach(c => {
+      if (changedCourtId === null || c.id === changedCourtId) c.nextPlan = null;
     });
+  }
 
-    const scores = [...groups.keys()].sort((a,b) => a - b);
-    const picked = [];
+  function eligibleForCourt(name, courtId) {
+    return rotation.mode === "shared" || rotation.assignments[name] === courtId;
+  }
 
-    for (const score of scores) {
-      const sameScore = shuffle(groups.get(score));
-      for (const name of sameScore) {
-        if (picked.length >= count) return picked;
-        picked.push(name);
+  function validateLineup(slots, courtId) {
+    if (!Array.isArray(slots) || slots.length !== 4 || slots.some(name => !name))
+      return {ok:false, message:"A 隊與 B 隊都要選滿 2 人"};
+    if (new Set(slots).size !== 4)
+      return {ok:false, message:"同一位球友不能佔兩個位置"};
+    if (slots.some(name => !roster.includes(name)))
+      return {ok:false, message:"場上球友必須在臨打名單中"};
+    if (slots.some(name => !eligibleForCourt(name,courtId)))
+      return {ok:false, message:"分組排場只能選擇分配到本場地的球友"};
+    const busy = activeNames(courtId);
+    if (slots.some(name => busy.has(name)))
+      return {ok:false, message:"選到已在其他場地上場的球友"};
+    for (const [a,b] of rotation.pairs) {
+      const ia=slots.indexOf(a), ib=slots.indexOf(b);
+      if ((ia===-1)!==(ib===-1))
+        return {ok:false, message:`${a} 和 ${b} 是固定搭檔，必須一起上場`};
+      // Slots: A1,B1,A2,B2. Same team => same parity.
+      if (ia>=0 && ia%2!==ib%2)
+        return {ok:false, message:`${a} 和 ${b} 必須在同一隊`};
+    }
+    return {ok:true};
+  }
+
+  function availableGroups(court) {
+    const busy=activeNames(court.id);
+    const available=new Set(roster.filter(name=>!busy.has(name) && eligibleForCourt(name,court.id)));
+    const alreadyPaired=new Set();
+    const groups=[];
+    for (const [a,b] of rotation.pairs) {
+      alreadyPaired.add(a); alreadyPaired.add(b);
+      if (available.has(a) && available.has(b)) groups.push([a,b]);
+    }
+    for (const name of roster) {
+      if (available.has(name) && !alreadyPaired.has(name)) groups.push([name]);
+    }
+    return groups;
+  }
+
+  // Court-local fair rotation. A fixed pair is one indivisible unit, NOT a
+  // fixed opponent. When there are >= 7 available players, aim to replace
+  // three of the four after each game, falling back to 1/2/4 when pairs or
+  // player availability make three impossible. For 5/6 players aim for 1/2.
+  function autoLineup(court, options = {}) {
+    const groups = availableGroups(court);
+    const availableCount = groups.reduce((sum, group) => sum + group.length, 0);
+    if (availableCount < 4) return null;
+    const prior = Array.isArray(options.previous) ? options.previous : court.court;
+    const priorSet = new Set(prior);
+    const isPlaying = court.court.length === 4;
+    // A current match is not counted in games yet, but will finish before
+    // the next suggested match is played.
+    const projected = (name) => (rotation.games[name] || 0) +
+      (isPlaying && court.court.includes(name) ? 1 : 0);
+    const targetChanges = prior.length === 4
+      ? Math.min(availableCount <= 6 ? 2 : 3, availableCount - 4)
+      : null;
+    const recent = rotation.history
+      .filter(entry => (entry.courtId || 1) === court.id && Array.isArray(entry.court) && entry.court.length === 4)
+      .slice(0, 10);
+
+    // Retain low-game candidates AND all current players so a one-person
+    // stayer is always considered when there is a large 60-person roster.
+    const groupPriority = (group) => group.reduce((sum, name) => sum + projected(name), 0) / group.length;
+    const sorted = shuffle(groups).sort((a,b) =>
+      groupPriority(a) - groupPriority(b));
+    const candidates = sorted.length <= 24 ? sorted : [
+      ...sorted.filter(group => group.some(name => priorSet.has(name))),
+      ...sorted.filter(group => !group.some(name => priorSet.has(name))).slice(0, 20)
+    ];
+
+    function canonicalTeam(team) { return [...team].sort().join('\u0001'); }
+    function teamsOf(slots) { return [[slots[0], slots[2]], [slots[1], slots[3]]]; }
+    function sameFour(a, b) {
+      return a.length === 4 && b.length === 4 && a.every(name => b.includes(name));
+    }
+    function teamScore(teams, chosen) {
+      let score = 0;
+      const teamKeys = teams.map(canonicalTeam);
+      for (let index = 0; index < recent.length; index++) {
+        const old = recent[index].court;
+        const oldTeams = teamsOf(old).map(canonicalTeam);
+        const weight = 1 / (1 + index * .8);
+        if (sameFour(chosen, old)) score += 330 * weight;
+        // Discourage identical two-team matchups even if A/B are reversed.
+        if (teamKeys.every(key => oldTeams.includes(key))) score += 240 * weight;
+        for (const team of teams) {
+          const locked = partnerOf(team[0]) === team[1];
+          if (!locked && oldTeams.includes(canonicalTeam(team))) score += 28 * weight;
+        }
+      }
+      // Also avoid keeping the exact current two-team matchup.
+      if (prior.length === 4) {
+        const oldTeams = teamsOf(prior).map(canonicalTeam);
+        if (teamKeys.every(key => oldTeams.includes(key))) score += 290;
+      }
+      return score;
+    }
+
+    let bestSlots = null;
+    let bestScore = Infinity;
+    function assess(selected) {
+      const chosen = selected.flat();
+      const newcomers = chosen.filter(name => !priorSet.has(name)).length;
+      // Turnover is the main rule; game fairness decides between similarly
+      // sized turnovers. All chosen sets have 4 people, so no group-size bias.
+      let score = chosen.reduce((sum, name) => sum + projected(name) * 54, 0);
+      if (targetChanges !== null) score += Math.abs(newcomers - targetChanges) * 480;
+      // Older rounds are only a tie-breaker; avoid making any four a permanent
+      // block, especially two fixed pairs facing each other forever.
+      const arrangements = [
+        [[chosen[0],chosen[1]],[chosen[2],chosen[3]]],
+        [[chosen[0],chosen[2]],[chosen[1],chosen[3]]],
+        [[chosen[0],chosen[3]],[chosen[1],chosen[2]]]
+      ];
+      for (const teams of arrangements) {
+        if (teams.some(team => team.some(name => {
+          const partner = partnerOf(name);
+          return partner && !team.includes(partner);
+        }))) continue;
+        const total = score + teamScore(teams, chosen) + Math.random() * 5;
+        if (total < bestScore) {
+          bestScore = total;
+          // A1, B1, A2, B2; randomly switch A/B for visual variety.
+          const a = Math.random() < .5 ? teams : [teams[1], teams[0]];
+          bestSlots = [a[0][0], a[1][0], a[0][1], a[1][1]];
+        }
       }
     }
-    return picked;
+    function search(offset, selected, count) {
+      if (count === 4) { assess(selected); return; }
+      for (let i = offset; i < candidates.length; i++) {
+        const group = candidates[i];
+        if (count + group.length > 4) continue;
+        selected.push(group);
+        search(i + 1, selected, count + group.length);
+        selected.pop();
+      }
+    }
+    search(0, [], 0);
+    return bestSlots;
   }
 
-  function createRandomPlan() {
-    if (!rotation.active || rotation.court.length !== 4) {
-      return { next:[], stayers:[], incoming:[], outgoing:[], requested:0, actual:0 };
+  function getPlan(court) {
+    if (!court.nextPlan || !validateLineup(court.nextPlan,court.id).ok)
+      court.nextPlan=autoLineup(court);
+    return court.nextPlan;
+  }
+
+  function rerollPlan(courtId) {
+    if (rotation.mode === "shared") rotation.sharedPreviewCourtId = courtId;
+    const court=rotation.courts.find(c=>c.id===courtId);
+    if(!court || court.court.length!==4) return;
+    court.nextPlan=autoLineup(court);
+    saveAll();renderRotation();
+  }
+
+  function assignCourt(court, slots) {
+    const result=validateLineup(slots, court.id);
+    if (result.ok && rotation.mode === "shared") rotation.sharedPreviewCourtId = court.id;
+    if (!result.ok) return result;
+    court.court=[...slots];
+    invalidatePlans(court.id);
+    saveAll();
+    renderRotation();
+    return {ok:true};
+  }
+
+  function makeAutoCourt(courtId) {
+    const court=rotation.courts.find(c=>c.id===courtId);
+    if (!court) return;
+    if (court.court.length) {
+      setRosterMessage(`第 ${courtId} 場已有比賽，請先結束本局或手動修改`, true);
+      return;
     }
+    const plan=getPlan(court);
+    if (!plan) {
+      setRosterMessage(`第 ${courtId} 場候補不足或固定搭檔無法湊成四人，請稍後再安排`);
+      renderRotation();
+      return;
+    }
+    assignCourt(court, plan);
+    setRosterMessage(`第 ${courtId} 場已自動安排`, false);
+  }
 
-    const requested = requestedOffCount(roster.length);
-    const actual = actualOffCount();
-    const stayCount = 4 - actual;
+  function completeCourt(courtId, continueAuto) {
+    if (rotation.mode === "shared") rotation.sharedPreviewCourtId = courtId;
+    const court=rotation.courts.find(c=>c.id===courtId);
+    if (!court || court.court.length!==4) return;
+    const old=[...court.court];
+    const proposed=continueAuto ? getPlan(court) : null;
+    old.forEach(name => { rotation.games[name]=(rotation.games[name] || 0)+1; });
+    rotation.history.unshift({ courtId, round:court.round, court:old, at:Date.now() });
+    rotation.history=rotation.history.slice(0,300);
+    court.round+=1;
+    court.court=[];
+    invalidatePlans(court.id);
+    // Use the previously displayed recommendation unless another court has since
+    // taken a player; recompute whenever that recommendation is no longer valid.
+    if (continueAuto) {
+      const next=proposed && validateLineup(proposed,courtId).ok
+        ? proposed : autoLineup(court);
+      if (next) court.court=[...next];
+      else setRosterMessage(`第 ${courtId} 場已記錄這一局，候補不足，目前先空場`,false);
+    }
+    invalidatePlans(court.id);
+    saveAll();
+    renderRotation();
+  }
 
-    // 下一場預覽時，先把目前正在進行的這一局算進場上四人的局數。
-    const effectiveGames = {};
-    roster.forEach(name => {
-      effectiveGames[name] =
-        (rotation.games[name] || 0) +
-        (rotation.court.includes(name) ? 1 : 0);
+  function cancelCourt(courtId) {
+    const court=rotation.courts.find(c=>c.id===courtId);
+    if (!court || !court.court.length) return;
+    if (!window.confirm(`清空第 ${courtId} 場目前人員？本局不會計入局數。`)) return;
+    court.court=[];
+    invalidatePlans(court.id);
+    saveAll();
+    renderRotation();
+  }
+
+  function refreshPairSelectors() {
+    for (const id of ["pairPersonA","pairPersonB"]) {
+      const select=$(id);
+      if(!select) continue;
+      const old=select.value;
+      select.innerHTML="";
+      const blank=document.createElement("option");
+      blank.value=""; blank.textContent=id==="pairPersonA" ? "第一人" : "第二人";
+      select.appendChild(blank);
+      for (const name of roster) {
+        const option=document.createElement("option");
+        option.value=name; option.textContent=name;
+        select.appendChild(option);
+      }
+      select.value=roster.includes(old) ? old : "";
+    }
+    renderPairList();
+  }
+
+  function renderPairList() {
+    const list=$("pairList");
+    list.innerHTML="";
+    if (!rotation.pairs.length) {
+      const empty=document.createElement("small");
+      empty.textContent="目前沒有固定搭檔";
+      list.appendChild(empty);
+    }
+    rotation.pairs.forEach(([a,b])=>{
+      const chip=document.createElement("span");
+      chip.className="pairChip";
+      const text=document.createElement("span");
+      text.textContent=`🔗 ${a} ＋ ${b}`;
+      const remove=document.createElement("button");
+      remove.type="button"; remove.textContent="解除";
+      remove.setAttribute("aria-label",`解除 ${a} 和 ${b} 的搭檔`);
+      remove.addEventListener("click",()=>{
+        const busy=activeNames();
+        if(busy.has(a)||busy.has(b)) {
+          $("pairMessage").textContent="搭檔正在上場，請等該局結束或先清空場地";
+          return;
+        }
+        rotation.pairs=rotation.pairs.filter(p=>!(p.includes(a)&&p.includes(b)));
+        invalidatePlans();
+        $("pairMessage").textContent="已解除搭檔";
+        saveAll();renderPairList();renderRotation();
+      });
+      chip.append(text,remove);list.appendChild(chip);
     });
-
-    // 候補：局數最少者優先；同局數才隨機。
-    const incoming = pickLowestFirst(
-      rotation.queue,
-      actual,
-      name => effectiveGames[name]
-    );
-
-    // 留場：場上局數較少者優先；同局數才隨機。
-    const stayers = pickLowestFirst(
-      rotation.court,
-      stayCount,
-      name => effectiveGames[name]
-    );
-
-    const outgoing = rotation.court.filter(name => !stayers.includes(name));
-
-    // 人選決定後，四個場上位置／搭檔仍然隨機。
-    const next = shuffle([...stayers, ...incoming]);
-
-    return {
-      next,
-      stayers,
-      incoming,
-      outgoing,
-      requested,
-      actual
-    };
   }
 
-  function ensureNextPlan() {
-    if (!rotation.active) return;
-    const plan = rotation.nextPlan;
-    const allNames = new Set(roster);
-    const valid = plan &&
-      Array.isArray(plan.next) &&
-      plan.next.length === 4 &&
-      plan.next.every(name => allNames.has(name));
+  $("addPairBtn").addEventListener("click",()=>{
+    const a=$("pairPersonA").value, b=$("pairPersonB").value;
+    const msg=$("pairMessage");
+    if(!a||!b||a===b) {msg.textContent="請選兩位不同球友";return;}
+    if(partnerOf(a)||partnerOf(b)) {msg.textContent="其中一人已經有搭檔，請先解除綁定";return;}
+    if(rotation.mode === "split" && rotation.assignments[a] !== rotation.assignments[b]) {msg.textContent="分組模式下，請先將兩人分到同一場地再綁定";return;}
+    const busy=activeNames();
+    if(busy.has(a)||busy.has(b)) {msg.textContent="請等兩人都下場後再綁定";return;}
+    rotation.pairs.push([a,b]);
+    msg.textContent=`已綁定 ${a}＋${b}（同隊同進退）`;
+    invalidatePlans();saveAll();renderPairList();renderRotation();
+    $("pairPersonA").value="";$("pairPersonB").value="";
+  });
 
-    if (!valid) {
-      rotation.nextPlan = createRandomPlan();
-      saveAll();
+  for(let n=1;n<=MAX_COURTS;n++) {
+    const option=document.createElement("option");
+    option.value=String(n); option.textContent=`${n} 場`;
+    $("courtCountSelect").appendChild(option);
+  }
+  $("courtCountSelect").value=String(rotation.courtCount);
+  $("courtCountSelect").addEventListener("change",()=>{
+    const count=Number($("courtCountSelect").value);
+    if(count<rotation.courtCount && rotation.courts.slice(count).some(c=>c.court.length)) {
+      setRosterMessage("請先結束或清空要移除場地的比賽");
+      $("courtCountSelect").value=String(rotation.courtCount);
+      return;
     }
+    const existing=rotation.courts;
+    rotation.courtCount=count;
+    rotation.courts=Array.from({length:count},(_,i)=>existing[i] || makeCourt(i+1));
+    rotation.assignments = Object.fromEntries(Object.entries(rotation.assignments).filter(([,id])=>id<=count));
+    invalidatePlans();saveAll();renderAssignments();renderRotation();updateRuleBadge();
+  });
+
+  function renderAssignments() {
+    $("rotationModeSelect").value=rotation.mode;
+    const split=rotation.mode==="split";
+    $("splitAssignments").hidden=!split;
+    const list=$("courtAssignments");list.innerHTML="";
+    if(!split) return;
+    for (const name of roster) {
+      const line=document.createElement("label");line.className="assignmentRow";
+      const nameText=document.createElement("span");
+      const partner=partnerOf(name);
+      nameText.textContent=name+(partner ? ` 🔗 ${partner}` : "");
+      const select=document.createElement("select");select.className="lineupSelect assignmentSelect";
+      const blank=document.createElement("option");blank.value="";blank.textContent="尚未分配";select.appendChild(blank);
+      for(let id=1;id<=rotation.courtCount;id++) {
+        const option=document.createElement("option");option.value=String(id);option.textContent=`第 ${id} 場`;
+        select.appendChild(option);
+      }
+      select.value=String(rotation.assignments[name] || "");
+      select.disabled=activeNames().has(name);
+      select.addEventListener("change",()=>{
+        const next=Number(select.value)||0;
+        const connected=partnerOf(name);
+        if (rotation.active && connected && activeNames().has(connected)) {
+          select.value=String(rotation.assignments[name]||"");
+          setRosterMessage("搭檔正在上場，請先完成或清空該局");return;
+        }
+        for(const person of [name,connected].filter(Boolean)) {
+          if(next) rotation.assignments[person]=next;
+          else delete rotation.assignments[person];
+        }
+        invalidatePlans();saveAll();renderAssignments();renderRotation();
+      });
+      line.append(nameText,select);list.appendChild(line);
+    }
+    const counts=Array.from({length:rotation.courtCount},(_,i)=>roster.filter(name=>rotation.assignments[name]===i+1).length);
+    $("assignmentSummary").textContent=counts.map((n,i)=>`第 ${i+1} 場 ${n} 人`).join("｜") + `｜未分配 ${roster.length-counts.reduce((a,b)=>a+b,0)} 人`;
+  }
+
+  $("rotationModeSelect").addEventListener("change",()=>{
+    const newMode=$("rotationModeSelect").value;
+    if(rotation.active && rotation.courts.some(c=>c.court.length)) {
+      $("rotationModeSelect").value=rotation.mode;
+      setRosterMessage("請先完成或清空所有正在進行的場地，再切換排場模式");return;
+    }
+    rotation.mode=newMode;
+    invalidatePlans();saveAll();renderAssignments();renderRotation();updateRuleBadge();
+  });
+  $("autoSplitBtn").addEventListener("click",()=>{
+    if(rotation.active && rotation.courts.some(c=>c.court.length)) {
+      setRosterMessage("自動分組前請先清空場上球友");return;
+    }
+    const units=[];const visited=new Set();
+    for(const [a,b] of rotation.pairs) { units.push([a,b]);visited.add(a);visited.add(b); }
+    for(const name of roster) if(!visited.has(name)) units.push([name]);
+    // Balance the number of players while keeping pairs intact.
+    const sizes=Array(rotation.courtCount).fill(0);rotation.assignments={};
+    units.sort((a,b)=>b.length-a.length).forEach(unit=>{
+      const target=sizes.indexOf(Math.min(...sizes));
+      unit.forEach(name=>{rotation.assignments[name]=target+1;});
+      sizes[target]+=unit.length;
+    });
+    invalidatePlans();saveAll();renderAssignments();renderRotation();
+    setRosterMessage("已平均分組；每場至少需要 4 人才能自動排場，可手動調整",false);
+  });
+
+  function updateRuleBadge() {
+    $("ruleBadge").textContent = rotation.active
+      ? `${rotation.courtCount} 場｜${rotation.mode==="split" ? "分組獨立" : "共用名單"}`
+      : roster.length >= 4 ? `可選 ${rotation.courtCount} 場` : "至少需要 4 人";
   }
 
   function startRotation() {
-    if (roster.length < 4) {
-      setRosterMessage("至少需要 4 人才能開始排場");
-      return;
-    }
-
-    const manualCourt = readLineup(firstLineupIds);
-    const validation = validateLineup(manualCourt);
-    if (!validation.ok) {
-      setRosterMessage(validation.message);
-      return;
-    }
-
-    rotation = {
-      active:true,
-      court:[...manualCourt],
-      queue:shuffle(roster.filter(name => !manualCourt.includes(name))),
-      games:Object.fromEntries(roster.map(name => [name,0])),
-      round:1,
-      history:[],
-      nextPlan:null
-    };
-
-    rotation.nextPlan = createRandomPlan();
+    if (rotation.active) return;
+    if (roster.length < 4) {setRosterMessage("至少需要 4 人才能開始排場");return;}
+    rotation.active=true;
+    rotation.courts=Array.from({length:rotation.courtCount},(_,i)=>makeCourt(i+1));
+    rotation.games=Object.fromEntries(roster.map(name=>[name,0]));
+    rotation.history=[];
     saveAll();
-    setRosterMessage("第一場已依你手動指定的 A隊 / B隊開始；之後少局者優先。", false);
-    renderRoster();
-    renderRotation();
+    renderRoster();renderAssignments();renderRotation();
+    setRosterMessage("排場已開始：請到下方各場地按「自動排人」或「手動排人」", false);
   }
+  $("startBtn").addEventListener("click",startRotation);
 
-  $("startBtn").addEventListener("click", startRotation);
-
-  function finishRound() {
-    if (!rotation.active || rotation.court.length !== 4) return;
-
-    ensureNextPlan();
-    const plan = rotation.nextPlan;
-    const oldCourt = [...rotation.court];
-
-    oldCourt.forEach(name => {
-      rotation.games[name] = (rotation.games[name] || 0) + 1;
-    });
-
-    // 把本輪被抽中的候補移出候補區。
-    const incomingSet = new Set(plan.incoming);
-    rotation.queue = rotation.queue.filter(name => !incomingSet.has(name));
-
-    // 本輪下場的人回到候補池，候補池順序也隨機。
-    rotation.queue.push(...plan.outgoing);
-    rotation.queue = shuffle(rotation.queue);
-
-    rotation.court = [...plan.next];
-
-    rotation.history.unshift({
-      round: rotation.round,
-      court: oldCourt,
-      stayers: [...plan.stayers],
-      incoming: [...plan.incoming],
-      outgoing: [...plan.outgoing],
-      requested: plan.requested,
-      actual: plan.actual
-    });
-
-    rotation.round += 1;
-
-    // 先更新狀態，再隨機產生下一輪，讓畫面上的「下一場」不會跳來跳去。
-    rotation.nextPlan = null;
-    rotation.nextPlan = createRandomPlan();
-
-    saveAll();
-    renderRotation();
-  }
-
-  $("finishBtn").addEventListener("click", finishRound);
-
-  $("endSessionBtn").addEventListener("click", () => {
-    rotation.active = false;
-    rotation.court = [];
-    rotation.queue = [];
-    rotation.games = {};
-    rotation.round = 1;
-    rotation.history = [];
-    rotation.nextPlan = null;
-    saveAll();
-    setRosterMessage("已結束排場，現在可以新增、刪除或調整名單順序。", false);
-    renderRoster();
-    renderRotation();
+  $("endSessionBtn").addEventListener("click",()=>{
+    if(!window.confirm("確定結束排場？本次局數與輪轉紀錄會清空，固定搭檔與名單會保留。")) return;
+    rotation.active=false;
+    rotation.courts=Array.from({length:rotation.courtCount},(_,i)=>makeCourt(i+1));
+    rotation.games={};rotation.history=[];
+    invalidatePlans();saveAll();
+    setRosterMessage("已結束排場；固定搭檔設定仍保留",false);
+    renderRoster();renderRotation();
   });
 
-  function renderRotation() {
-    $("gameArea").hidden = !rotation.active;
-    if (!rotation.active) {
-      updateRuleBadge();
-      return;
-    }
-
-    ensureNextPlan();
-
-    $("roundBadge").textContent = `第 ${rotation.round} 場`;
-    $("ruleBadge").textContent = ruleText(roster.length);
-
-    const slotLabels = ["A1","B1","A2","B2"];
-    for (let i=0;i<4;i++) {
-      const el = $(`court${i}`);
-      el.innerHTML = "";
-      const tag = document.createElement("span");
-      tag.className = "courtSlotTag";
-      tag.textContent = slotLabels[i];
-      const person = document.createElement("span");
-      person.className = "courtPersonName";
-      person.textContent = rotation.court[i] || "—";
-      el.append(tag, person);
-    }
-
-    const prediction = rotation.nextPlan;
-    const nextGrid = $("nextGrid");
-    nextGrid.innerHTML = "";
-
-    const nextSlots = ["A1","B1","A2","B2"];
-    prediction.next.forEach((name, index) => {
-      const box = document.createElement("div");
-      const isStay = prediction.stayers.includes(name);
-      box.className = "nextPerson" + (isStay ? " stay" : "");
-
-      const teamTag = document.createElement("span");
-      teamTag.className = "nextTeamTag";
-      teamTag.textContent = nextSlots[index] || "";
-
-      const personText = document.createElement("span");
-      personText.textContent = isStay ? `⭐ ${name}｜留場` : `⬆️ ${name}｜上場`;
-
-      box.append(teamTag, personText);
-      nextGrid.appendChild(box);
-    });
-
-    let nextRule = ruleText(roster.length);
-    if (prediction.actual < prediction.requested) {
-      nextRule += `；候補只有 ${rotation.queue.length} 人，因此本輪實際下 ${prediction.actual} 人`;
-    } else {
-      nextRule += `；少局者優先進下一局，同局數才隨機`;
-    }
-    $("nextRuleText").textContent = nextRule;
-
-    const queue = $("queueList");
-    queue.innerHTML = "";
-    if (rotation.queue.length === 0) {
-      const empty = document.createElement("span");
-      empty.className = "muted";
-      empty.textContent = "目前沒有候補";
-      queue.appendChild(empty);
-    } else {
-      rotation.queue.forEach(name => {
-        const chip = document.createElement("span");
-        chip.className = "queueChip";
-        chip.textContent = name;
-        queue.appendChild(chip);
-      });
-    }
-
-    const stats = $("gamesStats");
-    stats.innerHTML = "";
-    [...roster]
-      .sort((a,b) => (rotation.games[a] || 0) - (rotation.games[b] || 0) || roster.indexOf(a) - roster.indexOf(b))
-      .forEach(name => {
-        const item = document.createElement("div");
-        item.className = "statChip";
-        const label = document.createElement("span");
-        label.textContent = name;
-        const strong = document.createElement("strong");
-        strong.textContent = `${rotation.games[name] || 0} 局`;
-        item.append(label,strong);
-        stats.appendChild(item);
-      });
-
-    const history = $("historyList");
-    history.innerHTML = "";
-    if (!rotation.history.length) {
-      const empty = document.createElement("span");
-      empty.className = "muted";
-      empty.textContent = "尚未完成任何一局";
-      history.appendChild(empty);
-    } else {
-      rotation.history.forEach(entry => {
-        const item = document.createElement("div");
-        item.className = "historyItem";
-
-        const title = document.createElement("strong");
-        title.textContent = `第 ${entry.round} 場｜${entry.court.join("、")}`;
-
-        const detail = document.createElement("div");
-        const stayText = entry.stayers.length ? `留場：${entry.stayers.join("、")}` : "無留場";
-        const offText = entry.outgoing.length ? `下場：${entry.outgoing.join("、")}` : "無下場";
-        detail.textContent = `${stayText}｜${offText}`;
-
-        item.append(title,detail);
-        history.appendChild(item);
-      });
-    }
-
-    saveAll();
+  function makeButton(label, klass, action) {
+    const btn=document.createElement("button");
+    btn.type="button";btn.className=klass;btn.textContent=label;
+    btn.addEventListener("click",action);
+    return btn;
   }
 
+  function renderCourtEditor(court, parent) {
+    const editor=document.createElement("div");
+    editor.className="courtEdit";
+    const tip=document.createElement("small");
+    tip.textContent="A 隊與 B 隊各選 2 人；其他場地上場中的人不能選。";
+    editor.appendChild(tip);
+    const grid=document.createElement("div");
+    grid.className="teamSelectGrid";
+    const picks=[];
+    // Keep data layout exactly as original: A1 B1 A2 B2.
+    [["A隊","teamABox",[0,2]],["B隊","teamBBox",[1,3]]].forEach(([title,boxClass,indices])=>{
+      const box=document.createElement("div");
+      box.className=`teamSelectCard ${boxClass}`;
+      const heading=document.createElement("div");
+      heading.className="teamSelectTitle";heading.textContent=title;
+      box.appendChild(heading);
+      indices.forEach((slot,j)=>{
+        const label=document.createElement("label");
+        label.textContent=`${title[0]}${j+1}`;
+        const select=document.createElement("select");
+        select.className="lineupSelect";
+        const blank=document.createElement("option");blank.value="";blank.textContent="請選擇";
+        select.appendChild(blank);
+        const busy=activeNames(court.id);
+        roster.filter(name=>!busy.has(name) && eligibleForCourt(name,court.id)).forEach(name=>{
+          const option=document.createElement("option");
+          option.value=name;option.textContent=name;select.appendChild(option);
+        });
+        select.value=court.court[slot] || "";
+        picks[slot]=select;
+        label.appendChild(select);box.appendChild(label);
+      });
+      grid.appendChild(box);
+    });
+    editor.appendChild(grid);
+    const message=document.createElement("div");message.className="courtMessage";
+    const actions=document.createElement("div");actions.className="courtActions";
+    actions.appendChild(makeButton("儲存這場名單","secondary",()=>{
+      const slots=picks.map(el=>el.value);
+      const result=validateLineup(slots,court.id);
+      if(!result.ok) {message.textContent=result.message;return;}
+      editingCourtId=null;
+      assignCourt(court, slots);
+      setRosterMessage(`第 ${court.id} 場已更新`,false);
+    }));
+    actions.appendChild(makeButton("取消","ghost",()=>{editingCourtId=null;renderRotation();}));
+    editor.append(actions,message);
+    parent.appendChild(editor);
+  }
+
+  // Split mode keeps the original court-by-court preview.
+  // Shared mode displays only ONE last-updated-court preview below the grid.
+  // All rotation logic and individual court plan persistence are unchanged.
+  function createNextPreview(court) {
+        const plan=getPlan(court);
+        const preview=document.createElement("section");preview.className="courtNext";
+        preview.setAttribute("aria-label",`第 ${court.id} 場下一局預備`);
+        const heading=document.createElement("div");heading.className="nextHeading";
+        const strong=document.createElement("strong");strong.textContent="📣 下一局預備名單";
+        const status=document.createElement("span");status.className="nextStatus";
+        const incoming=plan ? plan.filter(name=>!court.court.includes(name)) : [];
+        status.textContent=plan ? (incoming.length ? `換 ${incoming.length} 人` : "沒有可換候補") : "無可用陣容";
+        heading.append(strong,status);preview.appendChild(heading);
+        if(plan) {
+          // Shared mode: four distinct player cards in a balanced 2×2 layout,
+          // without displaying the upcoming A/B teams.
+          // Split mode retains its team previews.
+          const sharedPreview = rotation.mode === "shared";
+          const readyList=document.createElement("div");
+          readyList.className=sharedPreview ? "nextReadyList" : "nextTeams";
+          const addPlayer=(name,parent)=>{
+            const player=document.createElement("div");player.className="nextReadyPlayer";
+            const who=document.createElement("b");who.textContent=`${partnerOf(name)?"🔗 ":""}${name}`;
+            const tag=document.createElement("small");
+            const isIncoming=!court.court.includes(name);
+            tag.className=isIncoming ? "nextFreshTag" : "nextStayTag";
+            tag.textContent=isIncoming ? "準備上場" : "繼續上場";
+            player.append(who,tag);parent.appendChild(player);
+          };
+          if (sharedPreview) {
+            // Keep A/B pairing internally; only simplify the visual presentation.
+            plan.forEach(name=>addPlayer(name,readyList));
+          } else {
+            [["A 隊",[plan[0],plan[2]],"teamABox"],["B 隊",[plan[1],plan[3]],"teamBBox"]].forEach(([title,names,klass])=>{
+              const card=document.createElement("div");card.className=`nextTeam ${klass}`;
+              const label=document.createElement("div");label.className="nextTeamLabel";label.textContent=title;
+              card.appendChild(label);
+              names.forEach(name=>addPlayer(name,card));
+              readyList.appendChild(card);
+            });
+          }
+          preview.appendChild(readyList);
+          // Do not list who's resting: the visible four ready cards are enough.
+          // Only show actionable advice if a next-round lineup cannot rotate.
+          if(!incoming.length) {
+            const otherBusy=activeNames(court.id);
+            const waitingEligible=roster.filter(name=>!court.court.includes(name) && !otherBusy.has(name) && eligibleForCourt(name,court.id));
+            const note=document.createElement("div");note.className="nextRest";
+            if(waitingEligible.length) note.textContent=`⚠️ 候補 ${waitingEligible.join("、")} 暫時無法組成合法替補：固定搭檔必須兩人同隊、一起上下場。請調整綁定／分組或增加可輪換球友。`;
+            else note.textContent="此場目前沒有空閒候補；其他場地正在打的人不會被抽走。可等候補出現，或使用「手動修改場上」。";
+            preview.appendChild(note);
+          }
+        } else {
+          const note=document.createElement("div");note.className="nextRest";
+          note.textContent="目前無法安排完整四人，請檢查該場分組人數、固定搭檔及其他場地上場名單。";
+          preview.appendChild(note);
+        }
+        const reroll=makeButton("🎲 重抽下一局","ghost nextReroll",()=>rerollPlan(court.id));
+        preview.appendChild(reroll);
+        return preview;
+  }
+
+  let editingCourtId=null;
+  function renderRotation() {
+    $("gameArea").hidden=!rotation.active;
+    $("startBtn").hidden=rotation.active;
+    $("courtCountSelect").value=String(rotation.courtCount);
+    renderAssignments();
+    if (!rotation.active) {updateRuleBadge();saveAll();return;}
+    $("activeCourtInfo").textContent=`${rotation.courts.filter(c=>c.court.length).length} / ${rotation.courtCount} 場進行中`;
+    updateRuleBadge();
+    const grid=$("courtsGrid");grid.innerHTML="";
+    grid.dataset.count = String(rotation.courtCount);
+    const labels=["A1","B1","A2","B2"];
+    for(const court of rotation.courts) {
+      const unit=document.createElement("div");unit.className="courtUnit";
+      const header=document.createElement("div");header.className="courtUnitHeader";
+      const title=document.createElement("h3");title.textContent=`第 ${court.id} 場｜第 ${court.round} 局${rotation.mode==="split" ? `（專屬 ${roster.filter(name=>rotation.assignments[name]===court.id).length} 人）` : ""}`;
+      const status=document.createElement("span");
+      status.className="courtStatus"+(court.court.length ? "" : " idle");
+      status.textContent=court.court.length ? "進行中" : "空場等待";
+      header.append(title,status);unit.appendChild(header);
+      if(court.court.length) {
+        const legend=document.createElement("div");legend.className="teamLegend";
+        ["A隊","B隊"].forEach((label,i)=>{
+          const el=document.createElement("span");el.className=i===0?"teamALabel":"teamBLabel";
+          el.textContent=label;legend.appendChild(el);
+        });
+        unit.appendChild(legend);
+        const field=document.createElement("div");field.className="court";
+        field.setAttribute("aria-label",`第 ${court.id} 場球友`);
+        for(const cls of ["centerV","centerH"]) {
+          const line=document.createElement("div");line.className=`courtLine ${cls}`;field.appendChild(line);
+        }
+        court.court.forEach((name,i)=>{
+          const spot=document.createElement("div");spot.className=`courtPlayer cp${i}`;
+          const tag=document.createElement("span");tag.className="courtSlotTag";tag.textContent=labels[i];
+          const who=document.createElement("span");who.className="courtPersonName";
+          who.textContent=partnerOf(name) ? `🔗 ${name}` : name;
+          spot.append(tag,who);field.appendChild(spot);
+        });unit.appendChild(field);
+      } else {
+        const empty=document.createElement("div");empty.className="courtEmpty";
+        empty.textContent="尚未安排人員，請按下方按鈕排場";unit.appendChild(empty);
+      }
+      const actions=document.createElement("div");actions.className="courtActions";
+      if(court.court.length) {
+        actions.appendChild(makeButton("✅ 完成 → 下一局","primary",()=>completeCourt(court.id,true)));
+        actions.appendChild(makeButton("完成並空場","secondary",()=>completeCourt(court.id,false)));
+        actions.appendChild(makeButton("✏️ 修改場上","ghost",()=>{editingCourtId=court.id;renderRotation();}));
+        actions.appendChild(makeButton("清空不計局","ghost",()=>cancelCourt(court.id)));
+      } else {
+        actions.appendChild(makeButton("🎲 自動排人","primary",()=>makeAutoCourt(court.id)));
+        actions.appendChild(makeButton("✏️ 手動排人","secondary",()=>{editingCourtId=court.id;renderRotation();}));
+      }
+      unit.appendChild(actions);
+      if(editingCourtId===court.id) renderCourtEditor(court,unit);
+      if (rotation.mode === "split" && court.court.length && editingCourtId!==court.id) {
+        unit.appendChild(createNextPreview(court));
+      }
+      grid.appendChild(unit);
+    }
+
+    const sharedArea=$("sharedNextArea");
+    const sharedLabel=$("sharedPreviewCourtLabel");
+    const sharedContent=$("sharedPreviewContent");
+    sharedContent.replaceChildren();
+    sharedArea.hidden = rotation.mode !== "shared";
+    if (rotation.mode === "shared") {
+      // Shared-roster mode has ONE preview card, not N alternatives with a
+      // court picker. It follows the last changed court, keeping the suggested
+      // stayers correct for that court. Each court's saved plan stays separate.
+      const playing=rotation.courts.filter(c=>c.court.length===4);
+      const chosen=playing.find(c=>c.id===rotation.sharedPreviewCourtId) || playing[0];
+      sharedLabel.hidden = !chosen;
+      if (chosen) {
+        rotation.sharedPreviewCourtId=chosen.id;
+        sharedLabel.textContent=`第 ${chosen.id} 場`;
+        sharedContent.appendChild(createNextPreview(chosen));
+      } else {
+        const empty=document.createElement("p");empty.className="muted";
+        empty.textContent="尚無進行中的場地。先按任一場的「自動排人」，就會顯示下一局預備名單。";
+        sharedContent.appendChild(empty);
+      }
+    }
+
+    const waiting=roster.filter(name=>!activeNames().has(name));
+    const queue=$("queueList");queue.innerHTML="";
+    if(!waiting.length) {const empty=document.createElement("span");empty.className="muted";empty.textContent="目前沒有候補";queue.appendChild(empty);}
+    else waiting.sort((a,b)=>(rotation.games[a]||0)-(rotation.games[b]||0)).forEach(name=>{
+      const chip=document.createElement("div");chip.className="queueChip";
+      const label=document.createElement("span");label.className="queueName";
+      label.textContent=`${partnerOf(name)?"🔗 ":""}${name}`;
+      const meta=document.createElement("small");meta.className="queueMeta";
+      const courtLabel=rotation.mode==="split" ? (rotation.assignments[name] ? `第 ${rotation.assignments[name]} 場 · ` : "未分配 · ") : "";
+      meta.textContent=`${courtLabel}${rotation.games[name]||0} 局`;
+      chip.append(label,meta);
+      queue.appendChild(chip);
+    });
+
+    const trackedNames = rotation.mode === "split"
+      ? roster.filter(name => rotation.assignments[name]) : roster;
+    const counts=trackedNames.map(name=>rotation.games[name]||0);
+    $("fairnessGap").textContent=counts.length ? `目前局數差：${Math.max(...counts)-Math.min(...counts)} 局` : "目前局數差：0";
+    const stats=$("gamesStats");stats.innerHTML="";
+    [...roster].sort((a,b)=>(rotation.games[a]||0)-(rotation.games[b]||0))
+      .forEach(name=>{
+        const item=document.createElement("div");item.className="statChip";
+        const label=document.createElement("span");label.textContent=(partnerOf(name)?"🔗 ":"")+name;
+        const count=document.createElement("strong");count.textContent=`${rotation.games[name]||0} 局`;
+        item.append(label,count);stats.appendChild(item);
+      });
+    $("historyCount").textContent=`（${rotation.history.length} 局）`;
+    const history=$("historyList");history.innerHTML="";
+    if(!rotation.history.length) {const empty=document.createElement("span");empty.className="muted";empty.textContent="尚未完成任何一局";history.appendChild(empty);}
+    else rotation.history.forEach(entry=>{
+      const item=document.createElement("div");item.className="historyItem";
+      const title=document.createElement("strong");
+      title.textContent=`第 ${entry.courtId||1} 場｜第 ${entry.round} 局`;
+      const detail=document.createElement("div");
+      detail.textContent=Array.isArray(entry.court)
+        ? `A隊 ${entry.court[0]||"—"}＋${entry.court[2]||"—"} ｜ B隊 ${entry.court[1]||"—"}＋${entry.court[3]||"—"}` : "";
+      item.append(title,detail);history.appendChild(item);
+    });
+    saveAll();
+    requestAnimationFrame(fitReadyNames);
+  }
+
+  // Adjust ready-card names to their actual available width, including on resize.
+  // Most names keep the larger default text; longer names shrink, then wrap if needed.
+  function fitReadyNames() {
+    document.querySelectorAll(".courtNext .nextReadyPlayer b").forEach(label=>{
+      label.style.fontSize="";
+      label.style.whiteSpace="nowrap";
+      label.style.overflowWrap="normal";
+      label.style.wordBreak="normal";
+      if(label.clientWidth < 20) return; // Inactive tab; measure on opening it.
+      let size=parseFloat(getComputedStyle(label).fontSize) || 20;
+      while(size > 12 && label.scrollWidth > label.clientWidth + 1) {
+        size-=1;
+        label.style.fontSize=`${size}px`;
+      }
+      if(label.scrollWidth > label.clientWidth + 1) {
+        label.style.whiteSpace="normal";
+        label.style.overflowWrap="anywhere";
+        label.style.wordBreak="break-word";
+      }
+    });
+  }
+  window.addEventListener("resize",()=>requestAnimationFrame(fitReadyNames));
 
   // ---------- Pull to refresh ----------
   (() => {
@@ -1367,7 +1707,7 @@
   renderPeopleMemory();
   renderPayments();
   renderRoster();
-  refreshFirstLineupSelects();
+  refreshPairSelectors();
   renderRotation();
   updateRosterDerivedState();
 })();
