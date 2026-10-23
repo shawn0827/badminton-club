@@ -558,3 +558,42 @@ button:focus-visible,select:focus-visible{outline:3px solid rgba(37,99,235,.3);o
 .demoTools{margin-top:10px;border-top:1px solid var(--line);padding-top:5px}
 .demoTools summary{font-size:12px;color:#94a3b8;font-weight:600;min-height:30px}
 .inlineFeedback:empty{display:none}
+
+
+/* v21: mobile two-court layout. No change to court selection or rotation logic. */
+@media (max-width:659px) {
+  /* Exactly two active courts go side by side; one court stays full width. */
+  .courtsGrid[data-count="2"]{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  #gameArea > .card:first-child{padding:13px 9px}
+  .courtsGrid[data-count="2"] .courtUnit{padding:7px;min-width:0;border-radius:13px}
+  .courtsGrid[data-count="2"] .courtUnitHeader{align-items:flex-start;flex-wrap:wrap;gap:3px;min-height:52px}
+  .courtsGrid[data-count="2"] .courtUnit h3{font-size:clamp(11px,3.2vw,13px);line-height:1.25}
+  .courtsGrid[data-count="2"] .courtStatus{padding:3px 6px;font-size:10px}
+  .courtsGrid[data-count="2"] .teamLegend{gap:4px;margin:5px 0 2px}
+  .courtsGrid[data-count="2"] .teamLegend span{font-size:12px;padding:4px 2px}
+  .courtsGrid[data-count="2"] .court{margin-top:5px;aspect-ratio:1.18/1;border-width:2px;border-radius:10px}
+  .courtsGrid[data-count="2"] .courtPlayer{padding:2px;gap:2px}
+  .courtsGrid[data-count="2"] .courtSlotTag{font-size:9px;padding:1px 4px}
+  .courtsGrid[data-count="2"] .courtPersonName{font-size:clamp(10px,3.15vw,13px);line-height:1.13;overflow-wrap:anywhere;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden;text-overflow:clip}
+  .courtsGrid[data-count="2"] .courtActions{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;margin-top:8px}
+  .courtsGrid[data-count="2"] .courtActions button{width:100%;min-width:0;min-height:38px;margin:0;padding:5px 2px;font-size:clamp(10px,2.7vw,12px);line-height:1.25;white-space:normal;overflow-wrap:anywhere}
+  .courtsGrid[data-count="2"] .courtEmpty{padding:15px 4px;font-size:12px}
+  .courtsGrid[data-count="2"] .courtEdit{padding:7px}
+  .courtsGrid[data-count="2"] .courtEdit .teamSelectGrid{grid-template-columns:1fr;gap:7px}
+  .courtsGrid[data-count="2"] .courtEdit .teamSelectCard{padding:6px}
+  .courtsGrid[data-count="2"] .courtEdit .lineupSelect{font-size:13px;padding:6px 3px;min-height:40px}
+  /* Dedicated court preview still belongs beneath its own court. Stack the
+     A/B team cards within that narrow column instead of squeezing text. */
+  .courtsGrid[data-count="2"] .courtNext{padding:7px;margin-top:9px;border-width:1.5px;border-radius:11px}
+  .courtsGrid[data-count="2"] .nextHeading{gap:3px;margin-bottom:6px}
+  .courtsGrid[data-count="2"] .nextHeading strong{font-size:clamp(12px,3.2vw,14px)}
+  .courtsGrid[data-count="2"] .nextStatus{font-size:10px;padding:3px 6px}
+  .courtsGrid[data-count="2"] .nextTeams{grid-template-columns:1fr;gap:6px}
+  .courtsGrid[data-count="2"] .nextTeam{padding:5px}
+  .courtsGrid[data-count="2"] .nextTeamLabel{font-size:12px;margin-bottom:3px}
+  .courtsGrid[data-count="2"] .nextReadyPlayer{padding:6px 3px;gap:3px;margin-top:4px}
+  .courtsGrid[data-count="2"] .nextReadyPlayer b{font-size:clamp(11px,3vw,13px)}
+  .courtsGrid[data-count="2"] .nextReadyPlayer small{font-size:10px;padding:3px 5px}
+  .courtsGrid[data-count="2"] .nextReroll{padding:7px 3px;min-height:38px;font-size:11px}
+  .courtsGrid[data-count="2"] .nextRest{padding:6px;font-size:11px}
+}

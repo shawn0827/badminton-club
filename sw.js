@@ -1,4 +1,4 @@
-const CACHE = "badminton-tools-v23-queue-grid";
+const CACHE = "badminton-tools-v24-mobile-2up";
 const CORE = [
   "./",
   "./index.html",
