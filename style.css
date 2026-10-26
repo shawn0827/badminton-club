@@ -109,51 +109,8 @@ button{
 .nextGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .nextPerson{border:1px solid #dbe2ff;background:#f5f7ff;border-radius:12px;padding:11px;text-align:center;font-weight:750;font-size:14px}
 .nextPerson.stay{background:#ecfdf3;border-color:#bbefcc;color:#166534}
-/* 候補名單自動換行，無須左右滑動；可讀性優先，長名字允許換行。 */
-.queueList{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(min(100%,92px),1fr));
-  gap:7px;
-  width:100%;
-  min-width:0;
-  overflow:visible;
-}
-.queueChip{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  min-width:0;
-  min-height:57px;
-  padding:7px 4px;
-  border-radius:11px;
-  border:1px solid #e2e8f0;
-  background:#f8fafc;
-  text-align:center;
-  line-height:1.25;
-}
-.queueName{
-  display:block;
-  width:100%;
-  font-size:clamp(12px,3.5vw,15px);
-  font-weight:750;
-  overflow-wrap:anywhere;
-  word-break:break-word;
-}
-.queueMeta{
-  display:block;
-  margin-top:4px;
-  font-size:11px;
-  line-height:1.3;
-  color:#64748b;
-  overflow-wrap:anywhere;
-}
-/* 無候補時保持正常提示寬度。 */
-.queueList>.muted{grid-column:1/-1;font-size:13px}
-@media(max-width:350px){
-  .queueList{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .queueChip{min-height:53px}
-}
+.queueList{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px}
+.queueChip{white-space:nowrap;background:#f3f4f6;border-radius:999px;padding:8px 11px;font-size:13px}
 .statsList{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
 .statChip{background:#f8fafc;border-radius:11px;padding:9px;font-size:13px}
 .statChip strong{display:block;font-size:16px;margin-top:2px}
@@ -539,6 +496,10 @@ button:focus-visible,select:focus-visible{outline:3px solid rgba(37,99,235,.3);o
 .sharedNextArea{margin-top:0}
 .sharedNextHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .sharedNextHeader h2{margin:0}
+.sharedPreviewPicker{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sharedPickerBtn{background:#eef2ff;color:#1e40af;min-height:35px;padding:7px 12px;border:1px solid #c7d2fe;font-size:13px}
+.sharedPickerBtn.active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+.sharedPreviewNote{display:block;margin:10px 0 0;color:#64748b;line-height:1.45}
 .sharedNextArea .courtNext{margin-top:11px}
 /* Historical results remain saved but don't extend the page. Expand on demand;
    even 300 rounds are constrained to a scrollable region. */
@@ -547,81 +508,16 @@ button:focus-visible,select:focus-visible{outline:3px solid rgba(37,99,235,.3);o
 .historyDetails .historyCount{color:#64748b;font-size:13px;font-weight:600}
 .historyExpandHint{font-size:12px;font-weight:500;color:#64748b;margin-left:auto}
 .historyDetails .historyList{max-height:340px;overflow-y:auto;overscroll-behavior:contain;margin-top:12px;padding-right:8px}
-@media(max-width:390px){.sharedNextHeader{align-items:flex-start}}
+@media(max-width:390px){.sharedNextHeader{align-items:flex-start}.sharedPreviewPicker{width:100%}.historyExpandHint{display:none}}
 
 
 /* v18: no per-court preview picker in shared mode; only one four-person card. */
 .sharedNextHeader .badge{font-size:13px}
 .sharedNextArea .courtNext{margin-top:10px}
 
-/* Final polish: optional demo controls and nonessential text remain unobtrusive. */
-.demoTools{margin-top:10px;border-top:1px solid var(--line);padding-top:5px}
-.demoTools summary{font-size:12px;color:#94a3b8;font-weight:600;min-height:30px}
-.inlineFeedback:empty{display:none}
 
-
-/* v21: mobile two-court layout. No change to court selection or rotation logic. */
-@media (max-width:659px) {
-  /* Exactly two active courts go side by side; one court stays full width. */
-  .courtsGrid[data-count="2"]{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-  #gameArea > .card:first-child{padding:13px 9px}
-  .courtsGrid[data-count="2"] .courtUnit{padding:7px;min-width:0;border-radius:13px}
-  .courtsGrid[data-count="2"] .courtUnitHeader{align-items:flex-start;flex-wrap:wrap;gap:3px;min-height:52px}
-  .courtsGrid[data-count="2"] .courtUnit h3{font-size:clamp(11px,3.2vw,13px);line-height:1.25}
-  .courtsGrid[data-count="2"] .courtStatus{padding:3px 6px;font-size:10px}
-  .courtsGrid[data-count="2"] .teamLegend{gap:4px;margin:5px 0 2px}
-  .courtsGrid[data-count="2"] .teamLegend span{font-size:12px;padding:4px 2px}
-  .courtsGrid[data-count="2"] .court{margin-top:5px;aspect-ratio:1.18/1;border-width:2px;border-radius:10px}
-  .courtsGrid[data-count="2"] .courtPlayer{padding:2px;gap:2px}
-  .courtsGrid[data-count="2"] .courtSlotTag{font-size:9px;padding:1px 4px}
-  .courtsGrid[data-count="2"] .courtPersonName{font-size:clamp(10px,3.15vw,13px);line-height:1.13;overflow-wrap:anywhere;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden;text-overflow:clip}
-  .courtsGrid[data-count="2"] .courtActions{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;margin-top:8px}
-  .courtsGrid[data-count="2"] .courtActions button{width:100%;min-width:0;min-height:38px;margin:0;padding:5px 2px;font-size:clamp(10px,2.7vw,12px);line-height:1.25;white-space:normal;overflow-wrap:anywhere}
-  .courtsGrid[data-count="2"] .courtEmpty{padding:15px 4px;font-size:12px}
-  .courtsGrid[data-count="2"] .courtEdit{padding:7px}
-  .courtsGrid[data-count="2"] .courtEdit .teamSelectGrid{grid-template-columns:1fr;gap:7px}
-  .courtsGrid[data-count="2"] .courtEdit .teamSelectCard{padding:6px}
-  .courtsGrid[data-count="2"] .courtEdit .lineupSelect{font-size:13px;padding:6px 3px;min-height:40px}
-  /* Dedicated court preview still belongs beneath its own court. Stack the
-     A/B team cards within that narrow column instead of squeezing text. */
-  .courtsGrid[data-count="2"] .courtNext{padding:7px;margin-top:9px;border-width:1.5px;border-radius:11px}
-  .courtsGrid[data-count="2"] .nextHeading{gap:3px;margin-bottom:6px}
-  .courtsGrid[data-count="2"] .nextHeading strong{font-size:clamp(12px,3.2vw,14px)}
-  .courtsGrid[data-count="2"] .nextStatus{font-size:10px;padding:3px 6px}
-  .courtsGrid[data-count="2"] .nextTeams{grid-template-columns:1fr;gap:6px}
-  .courtsGrid[data-count="2"] .nextTeam{padding:5px}
-  .courtsGrid[data-count="2"] .nextTeamLabel{font-size:12px;margin-bottom:3px}
-  .courtsGrid[data-count="2"] .nextReadyPlayer{padding:6px 3px;gap:3px;margin-top:4px}
-  .courtsGrid[data-count="2"] .nextReadyPlayer b{font-size:clamp(11px,3vw,13px)}
-  .courtsGrid[data-count="2"] .nextReadyPlayer small{font-size:10px;padding:3px 5px}
-  .courtsGrid[data-count="2"] .nextReroll{padding:7px 3px;min-height:38px;font-size:11px}
-  .courtsGrid[data-count="2"] .nextRest{padding:6px;font-size:11px}
-}
-
-/* v22: shared standby lists only players who are NOT currently on any court. */
+/* v19: shared preview shows ONLY globally idle players, never active stayers. */
 #queueArea[hidden]{display:none!important}
 .sharedStandbyPreview .standbyEmpty{background:#f8fafc;border:1px dashed #cbd5e1;color:#94a3b8}
 .sharedStandbyPreview .standbyEmpty b{color:#94a3b8}
 .sharedStandbyNote{margin:12px 0 0;color:#475569;font-size:12px;line-height:1.55}
-
-/* v23: global standby follows the same A1/B1/A2/B2 layout as live courts. */
-.sharedStandbyPreview .teamLegend{margin:12px 0 7px}
-.sharedStandbyPreview .readyCourt{margin-top:0;aspect-ratio:1.62/1}
-.sharedStandbyPreview .readyCourt .courtPersonName{
-  font-size:clamp(15px,3.8vw,21px);font-weight:850;
-  max-width:100%;overflow-wrap:anywhere;word-break:break-word;
-  line-height:1.2;white-space:normal;
-}
-.sharedStandbyPreview .readyCourt .courtPlayer{gap:5px}
-.sharedStandbyPreview .courtActions{margin-top:12px}
-.sharedStandbyPreview .readyEditor{margin-top:12px;padding:12px}
-.sharedStandbyPreview .readyEditor .teamSelectGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
-.sharedStandbyPreview .readyEditor .lineupSelect{min-width:0;font-size:15px}
-@media(max-width:390px){
-  .sharedStandbyPreview .readyCourt{aspect-ratio:1.4/1}
-  .sharedStandbyPreview .readyCourt .courtPersonName{font-size:clamp(13px,3.9vw,17px)}
-  .sharedStandbyPreview .readyEditor{padding:8px}
-  .sharedStandbyPreview .readyEditor .teamSelectGrid{gap:6px}
-  .sharedStandbyPreview .readyEditor .teamSelectCard{padding:7px}
-  .sharedStandbyPreview .readyEditor .lineupSelect{padding:6px 4px;font-size:13px}
-}

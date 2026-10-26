@@ -1,4 +1,4 @@
-const CACHE = "badminton-tools-v24-standby-sync-final";
+const CACHE = "badminton-tools-v22-global-idle-only";
 const CORE = [
   "./",
   "./index.html",

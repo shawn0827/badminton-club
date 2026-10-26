@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#f5f7fb">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="style.css?v=23">
+  <link rel="stylesheet" href="style.css?v=19">
   <title>羽球團工具</title>
 </head>
 <body>
@@ -39,14 +39,14 @@
         <div class="field">
           <div class="fieldText">
             <label for="walkInCount">臨打幾人</label>
-            <small id="rosterCountHint">可手動輸入或帶入名單</small>
+            <small id="rosterCountHint">臨打每人 $250；可直接輸入，或使用輪轉名單人數</small>
           </div>
           <input id="walkInCount" type="number" inputmode="numeric" min="0" placeholder="0">
         </div>
 
         <div class="syncRosterBox">
           <button id="syncRosterCountBtn" class="secondary full" type="button">使用輪轉名單人數</button>
-          <small id="syncRosterCountStatus" class="inlineFeedback"></small>
+          <small id="syncRosterCountStatus">目前採手動輸入；需要時再按上方按鈕</small>
         </div>
 
         <div class="field">
@@ -161,7 +161,7 @@
           <div class="memoryHeader">
             <div>
               <strong>常用球友</strong>
-              <small>點選即可加入</small>
+              <small>點名字加入本場；右側 × 可單獨刪除</small>
             </div>
             <button id="rememberRosterBtn" class="ghost memoryAction" type="button">記住目前名單</button>
           </div>
@@ -175,32 +175,29 @@
 
         <div id="rosterList" class="rosterList"></div>
 
-        <details class="demoTools">
-          <summary>測試名單</summary>
-          <div class="buttonRow">
-            <button id="demo6Btn" class="ghost" type="button">6 人</button>
-            <button id="demo8Btn" class="ghost" type="button">8 人</button>
-            <button id="demo10Btn" class="ghost" type="button">10 人</button>
-          </div>
-        </details>
+        <div class="buttonRow">
+          <button id="demo6Btn" class="ghost" type="button">測試 6 人</button>
+          <button id="demo8Btn" class="ghost" type="button">測試 8 人</button>
+          <button id="demo10Btn" class="ghost" type="button">測試 10 人</button>
+        </div>
 
 
         <div class="lineupSetup">
           <div class="sectionHeader">
-            <div><strong>🏸 場地數量</strong><small>最多 3 場</small></div>
+            <div><strong>🏸 場地數量</strong><small>1～3 場自由選擇；每場獨立排人與結束比賽</small></div>
             <select id="courtCountSelect" class="countSelect" aria-label="使用場地數量"></select>
           </div>
         </div>
         <div class="lineupSetup">
           <div class="sectionHeader">
-            <div><strong>🎯 排場方式</strong><small>選擇排場模式</small></div>
+            <div><strong>🎯 排場方式</strong><small>共用名單或依場地分組，各自輪轉</small></div>
             <select id="rotationModeSelect" class="countSelect" aria-label="排場模式">
               <option value="shared">全部場地共用名單</option>
               <option value="split">各場地分組獨立排場</option>
             </select>
           </div>
           <div id="splitAssignments" hidden>
-            <p class="hintLine">選擇各球友的場地；固定搭檔會分在一起。</p>
+            <p class="hintLine">指定每位球友專屬場地。各場只從自己的人員中排場；固定搭檔會一起分到同一場。</p>
             <button id="autoSplitBtn" class="secondary full" type="button">⚖️ 自動平均分組（可再手動調整）</button>
             <div id="assignmentSummary" class="hintLine"></div>
             <div id="courtAssignments" class="assignmentList"></div>
@@ -208,7 +205,7 @@
         </div>
         <div class="lineupSetup">
           <strong>🔗 固定搭檔</strong>
-          <small class="hintLine">兩人同隊、同進退</small>
+          <small class="hintLine">綁定後兩人必須同隊、一起上下場。每人只能綁一位。</small>
           <div class="pairForm">
             <select id="pairPersonA" class="lineupSelect" aria-label="搭檔第一人"></select>
             <span>＋</span>
@@ -227,22 +224,22 @@
       <div id="gameArea" hidden>
         <div class="card">
           <div class="sectionHeader">
-            <div><h2>各場地排場</h2><small></small></div>
+            <div><h2>各場地排場</h2><small>每場可自行指定 A／B 隊，或自動排人</small></div>
             <span class="badge accent" id="activeCourtInfo">0 場進行中</span>
           </div>
           <div id="courtsGrid" class="courtsGrid"></div>
         </div>
-        <!-- Shared: ONE global standby pool, never containing an active player.
-             Split: each court displays its own independent next-round lineup. -->
-        <section id="sharedNextArea" class="card sharedNextArea" hidden aria-label="共用名單待上場">
+        <!-- Shared: a single global four-slot standby pool (no active players).
+             Split: each court retains its own independent next-round plan. -->
+        <section id="sharedNextArea" class="card sharedNextArea" hidden aria-label="共用名單下一局預備">
           <div class="sharedNextHeader">
-            <h2>待上場</h2>
-            <span class="badge accent">全場共用</span>
+            <h2>全場共用候補</h2>
+            <span class="badge accent">不分場地</span>
           </div>
           <div id="sharedPreviewContent"></div>
         </section>
         <div id="queueArea" class="card">
-          <h2 id="queueHeading">休息區</h2>
+          <h2 id="queueHeading">目前候補</h2>
           <div id="queueList" class="queueList"></div>
         </div>
         <div class="card">
@@ -253,18 +250,25 @@
           <div id="gamesStats" class="statsList"></div>
         </div>
         <details id="historyDetails" class="card historyDetails">
-          <summary>📋 輪轉紀錄 <span id="historyCount" class="historyCount">（0 局）</span></summary>
+          <summary>📋 輪轉紀錄 <span id="historyCount" class="historyCount">（0 局）</span><span class="historyExpandHint">點此展開／收合</span></summary>
           <div id="historyList" class="historyList"><span class="muted">尚未完成任何一局</span></div>
         </details>
       </div>
-</section>
+
+      <div class="card noteCard">
+        <strong>新版排場規則</strong>
+        <p>每個場地各自排人、各自結束。「共用名單」模式只顯示一份全場候補名單，僅列沒有在任何場地比賽的人；各場結束時再從共用候補及本場留場人員安排下一局。「分組獨立」模式每場僅從指定人員排人、各自顯示下一局預備。兩種模式都不會讓同一人同時出現在不同場地。</p>
+        <p>每局 4 人上場。7 人以上優先「下 3、留 1」；5～6 人優先下 2（只有 5 人則下 1）；人數或搭檔限制不允許時，可彈性下 1／2／3／4 人。兼顧上場局數與避免重複對戰。</p>
+        <p>固定搭檔必須同隊、同場、同進退，但不會指定固定對手；有其他合法人選時，系統會盡量換人。分組獨立模式不跨場取人；例如 5 人中有兩組固定搭檔及 1 位單人，單人無法取代整組搭檔，需增加人員或調整分組。</p>
+      </div>
+    </section>
 
     <section id="paymentPage" class="page">
       <div class="card">
         <div class="sectionHeader">
           <div>
             <h2>今日收費名單</h2>
-            <small></small>
+            <small>新增姓名後，會同時加入臨打名單</small>
           </div>
           <span class="badge accent">$250 / 人</span>
         </div>
@@ -298,14 +302,14 @@
         </div>
         <div id="paymentList" class="paymentList"></div>
         <button id="clearPaymentsBtn" class="dangerSmall full" type="button">清空今日收費名單</button>
-        
+        <div class="paymentNote">刪除收費紀錄不會自動刪除臨打名單，避免誤刪正在排場的人。</div>
       </div>
     </section>
 
   </main>
 </div>
 
-<script src="app.js?v=23"></script>
+<script src="app.js?v=19"></script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
