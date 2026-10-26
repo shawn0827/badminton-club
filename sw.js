@@ -1,4 +1,4 @@
-const CACHE = "badminton-tools-v24-mobile-2up";
+const CACHE = "badminton-tools-v24-standby-sync-final";
 const CORE = [
   "./",
   "./index.html",

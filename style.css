@@ -597,3 +597,31 @@ button:focus-visible,select:focus-visible{outline:3px solid rgba(37,99,235,.3);o
   .courtsGrid[data-count="2"] .nextReroll{padding:7px 3px;min-height:38px;font-size:11px}
   .courtsGrid[data-count="2"] .nextRest{padding:6px;font-size:11px}
 }
+
+/* v22: shared standby lists only players who are NOT currently on any court. */
+#queueArea[hidden]{display:none!important}
+.sharedStandbyPreview .standbyEmpty{background:#f8fafc;border:1px dashed #cbd5e1;color:#94a3b8}
+.sharedStandbyPreview .standbyEmpty b{color:#94a3b8}
+.sharedStandbyNote{margin:12px 0 0;color:#475569;font-size:12px;line-height:1.55}
+
+/* v23: global standby follows the same A1/B1/A2/B2 layout as live courts. */
+.sharedStandbyPreview .teamLegend{margin:12px 0 7px}
+.sharedStandbyPreview .readyCourt{margin-top:0;aspect-ratio:1.62/1}
+.sharedStandbyPreview .readyCourt .courtPersonName{
+  font-size:clamp(15px,3.8vw,21px);font-weight:850;
+  max-width:100%;overflow-wrap:anywhere;word-break:break-word;
+  line-height:1.2;white-space:normal;
+}
+.sharedStandbyPreview .readyCourt .courtPlayer{gap:5px}
+.sharedStandbyPreview .courtActions{margin-top:12px}
+.sharedStandbyPreview .readyEditor{margin-top:12px;padding:12px}
+.sharedStandbyPreview .readyEditor .teamSelectGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.sharedStandbyPreview .readyEditor .lineupSelect{min-width:0;font-size:15px}
+@media(max-width:390px){
+  .sharedStandbyPreview .readyCourt{aspect-ratio:1.4/1}
+  .sharedStandbyPreview .readyCourt .courtPersonName{font-size:clamp(13px,3.9vw,17px)}
+  .sharedStandbyPreview .readyEditor{padding:8px}
+  .sharedStandbyPreview .readyEditor .teamSelectGrid{gap:6px}
+  .sharedStandbyPreview .readyEditor .teamSelectCard{padding:7px}
+  .sharedStandbyPreview .readyEditor .lineupSelect{padding:6px 4px;font-size:13px}
+}

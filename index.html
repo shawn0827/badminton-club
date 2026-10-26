@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#f5f7fb">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="style.css?v=21">
+  <link rel="stylesheet" href="style.css?v=23">
   <title>羽球團工具</title>
 </head>
 <body>
@@ -232,17 +232,17 @@
           </div>
           <div id="courtsGrid" class="courtsGrid"></div>
         </div>
-        <!-- Shared mode: exactly ONE visible next-round recommendation.
-             Split mode: each court renders its own recommendation in courtsGrid. -->
-        <section id="sharedNextArea" class="card sharedNextArea" hidden aria-label="共用名單下一局預備">
+        <!-- Shared: ONE global standby pool, never containing an active player.
+             Split: each court displays its own independent next-round lineup. -->
+        <section id="sharedNextArea" class="card sharedNextArea" hidden aria-label="共用名單待上場">
           <div class="sharedNextHeader">
-            <h2>下一局預備</h2>
-            <span id="sharedPreviewCourtLabel" class="badge accent"></span>
+            <h2>待上場</h2>
+            <span class="badge accent">全場共用</span>
           </div>
           <div id="sharedPreviewContent"></div>
         </section>
-        <div class="card">
-          <h2>目前候補</h2>
+        <div id="queueArea" class="card">
+          <h2 id="queueHeading">休息區</h2>
           <div id="queueList" class="queueList"></div>
         </div>
         <div class="card">
@@ -305,7 +305,7 @@
   </main>
 </div>
 
-<script src="app.js?v=21"></script>
+<script src="app.js?v=23"></script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
